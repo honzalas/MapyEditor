@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MapyEditor - Editor tras</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            height: 100vh;
+            overflow: hidden;
+            background: #1a1a1a;
+        }
+
+        #app {
+            display: flex;
+            height: 100vh;
+        }
+
+        #map-container {
+            flex: 1;
+            position: relative;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+
+        #status-bar {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: white;
+            padding: 8px 16px;
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            z-index: 1000;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        #right-panel {
+            width: 400px;
+            background: #2d2d2d;
+            padding: 20px;
+            overflow-y: auto;
+            border-left: 1px solid #1a1a1a;
+        }
+
+        .panel-section {
+            background: #3a3a3a;
+            padding: 16px;
+            margin-bottom: 16px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+
+        .panel-section h3 {
+            margin-bottom: 12px;
+            font-size: 16px;
+            color: #e0e0e0;
+        }
+
+        .info-line {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .info-label {
+            font-weight: 500;
+            color: #b0b0b0;
+        }
+
+        .info-value {
+            color: #e0e0e0;
+        }
+
+        button {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 8px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+
+        button.primary {
+            background: #2196F3;
+            color: white;
+        }
+
+        button.primary:hover {
+            background: #1976D2;
+        }
+
+        button.success {
+            background: #4CAF50;
+            color: white;
+        }
+
+        button.success:hover {
+            background: #388E3C;
+        }
+
+        button.secondary {
+            background: #757575;
+            color: white;
+        }
+
+        button.secondary:hover {
+            background: #616161;
+        }
+
+        button.warning {
+            background: #F57C00;
+            color: white;
+        }
+
+        button.warning:hover {
+            background: #E65100;
+        }
+
+        button.muted {
+            background: #616161;
+            color: #e0e0e0;
+        }
+
+        button.muted:hover {
+            background: #757575;
+        }
+
+        .button-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .button-row button {
+            margin-bottom: 0;
+        }
+
+        .button-row .btn-main {
+            flex: 2;
+        }
+
+        .button-row .btn-secondary {
+            flex: 1;
+        }
+
+        button:disabled {
+            background: #e0e0e0 !important;
+            color: #9e9e9e !important;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 4px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #e0e0e0;
+        }
+
+        .form-group input[type="text"],
+        .form-group select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #555;
+            border-radius: 4px;
+            font-size: 14px;
+            background: #2d2d2d;
+            color: #e0e0e0;
+        }
+
+        .form-group input[type="text"]:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #2196F3;
+        }
+
+        input[type="file"] {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 8px;
+            font-size: 14px;
+            background: #2d2d2d;
+            color: #e0e0e0;
+            border: 1px solid #555;
+            border-radius: 4px;
+        }
+
+        #loading-indicator {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 16px 24px;
+            border-radius: 8px;
+            z-index: 2000;
+            display: none;
+        }
+
+        .route-tooltip {
+            background: rgba(0, 0, 0, 0.85) !important;
+            border: 1px solid #444 !important;
+            color: #e0e0e0 !important;
+            font-size: 13px !important;
+            padding: 6px 10px !important;
+            border-radius: 4px !important;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3) !important;
+        }
+
+        .route-tooltip::before {
+            border-top-color: rgba(0, 0, 0, 0.85) !important;
+        }
+
+        @media (max-width: 768px) {
+            #app {
+                flex-direction: column;
+            }
+
+            #map-container {
+                height: 60vh;
+            }
+
+            #right-panel {
+                width: 100%;
+                height: 40vh;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div id="map-container">
+            <div id="status-bar">Nevybraná trasa</div>
+            <div id="map"></div>
+            <div id="loading-indicator">Plánuji trasu...</div>
+        </div>
+        <div id="right-panel">
+            <div class="panel-section">
+                <h3>Informace</h3>
+                <div class="info-line">
+                    <span class="info-label">Počet tras:</span>
+                    <span class="info-value" id="route-count">0</span>
+                </div>
+                <div class="info-line">
+                    <span class="info-label">Aktivní trasa:</span>
+                    <span class="info-value" id="active-route">-</span>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <h3>Vytvoření trasy</h3>
+                <button class="primary" id="btn-create-manual">Nová trasa (ručně)</button>
+                <button class="primary" id="btn-create-routing">Nová trasa (routing)</button>
+            </div>
+
+            <div class="panel-section" id="attributes-panel" style="display: none;">
+                <h3>Atributy trasy</h3>
+                <div class="form-group">
+                    <label for="route-name">Název</label>
+                    <input type="text" id="route-name" placeholder="Název trasy">
+                </div>
+                <div class="form-group">
+                    <label for="route-color">Barva</label>
+                    <select id="route-color">
+                        <option value="red">Červená</option>
+                        <option value="blue">Modrá</option>
+                        <option value="green">Zelená</option>
+                    </select>
+                </div>
+                <div class="button-row">
+                    <button class="success btn-main" id="btn-save-route" disabled>Uložit trasu</button>
+                    <button class="muted btn-secondary" id="btn-cancel-route" disabled>Storno</button>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <h3>Import / Export GPX</h3>
+                <input type="file" id="gpx-input" accept=".gpx">
+                <button class="secondary" id="btn-load-gpx">Načíst GPX</button>
+                <button class="secondary" id="btn-export-gpx">Uložit GPX</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ======================
+        // CONFIGURATION
+        // ======================
+        const API_KEY = 'eyJpIjo1LCJjIjoxNjM3MjMxMTY1fQ.wQ9-T6PhNT85YhqKRZPbp-iAIosTyIDfdw_ADBdUrn0';
+        const ROUTE_TYPE = 'foot_fast';
+
+        // ======================
+        // DATA MODEL
+        // ======================
+        let routes = [];
+        let nextRouteId = 1;
+        let activeRouteId = null;
+        let mode = 'none'; // 'none', 'creating-manual', 'creating-routing', 'editing-manual', 'editing-routing'
+        let tempRouteData = null; // Temporary data for route being created
+        let routeBackup = null; // Backup of route before editing (for cancel)
+
+        const colorMap = {
+            red: '#D32F2F',
+            blue: '#1976D2',
+            green: '#388E3C'
+        };
+
+        // ======================
+        // MAP INITIALIZATION
+        // ======================
+        const map = L.map('map').setView([49.8729317, 14.8981184], 8);
+
+        /*
+        We store all our tile layers in an object, because we will
+        need to pass that to the layers switching map control.
+        */
+        const tileLayers = {
+            'Základní': L.tileLayer(`https://api.mapy.com/v1/maptiles/basic/256/{z}/{x}/{y}?apikey=${API_KEY}`, {
+                minZoom: 0,
+                maxZoom: 20,
+                attribution: '<a href="https://api.mapy.com/copyright" target="_blank">&copy; Seznam.cz a.s. a další</a>',
+            }),
+            'Turistická': L.tileLayer(`https://api.mapy.com/v1/maptiles/outdoor/256/{z}/{x}/{y}?apikey=${API_KEY}`, {
+                minZoom: 0,
+                maxZoom: 20,
+                attribution: '<a href="https://api.mapy.com/copyright" target="_blank">&copy; Seznam.cz a.s. a další</a>',
+            }),
+            'Zimní': L.tileLayer(`https://api.mapy.com/v1/maptiles/winter/256/{z}/{x}/{y}?apikey=${API_KEY}`, {
+                minZoom: 0,
+                maxZoom: 20,
+                attribution: '<a href="https://api.mapy.com/copyright" target="_blank">&copy; Seznam.cz a.s. a další</a>',
+            }),
+            'Letecká': L.tileLayer(`https://api.mapy.com/v1/maptiles/aerial/256/{z}/{x}/{y}?apikey=${API_KEY}`, {
+                minZoom: 0,
+                maxZoom: 20,
+                attribution: '<a href="https://api.mapy.com/copyright" target="_blank">&copy; Seznam.cz a.s. a další</a>',
+            }),
+        };
+
+        // Add the default Basic layer to the map (desaturated)
+        tileLayers['Základní'].addTo(map);
+
+        // Leaflet has a built-in map control for switching layers
+        L.control.layers(tileLayers).addTo(map);
+
+        // Apply grayscale filter to Basic map layer
+        // For initial load, apply after a short delay to ensure container is ready
+        setTimeout(() => {
+            const container = tileLayers['Základní'].getContainer();
+            if (container) {
+                container.style.filter = 'grayscale(90%) opacity(60%)';
+            }
+        }, 100);
+
+        // Also apply filter when switching to Basic map
+        map.on('baselayerchange', function(e) {
+            if (e.name === 'Základní') {
+                setTimeout(() => {
+                    const container = tileLayers['Základní'].getContainer();
+                    if (container) {
+                        container.style.filter = 'grayscale(90%) opacity(60%)';
+                    }
+                }, 50);
+            }
+        });
+
+        // Add logo control
+        const LogoControl = L.Control.extend({
+            options: { position: 'bottomleft' },
+            onAdd: function (map) {
+                const container = L.DomUtil.create('div');
+                const link = L.DomUtil.create('a', '', container);
+                link.setAttribute('href', 'http://mapy.com/');
+                link.setAttribute('target', '_blank');
+                link.innerHTML = '<img src="https://api.mapy.com/img/api/logo.svg" />';
+                L.DomEvent.disableClickPropagation(link);
+                return container;
+            },
+        });
+        new LogoControl().addTo(map);
+
+        // ======================
+        // LAYERS & MARKERS
+        // ======================
+        const routeLayers = {}; // routeId -> { line, markers }
+
+        // ======================
+        // UI ELEMENTS
+        // ======================
+        const statusBar = document.getElementById('status-bar');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const routeCountEl = document.getElementById('route-count');
+        const activeRouteEl = document.getElementById('active-route');
+        const attributesPanel = document.getElementById('attributes-panel');
+        const routeNameInput = document.getElementById('route-name');
+        const routeColorSelect = document.getElementById('route-color');
+
+        // ======================
+        // HELPER FUNCTIONS
+        // ======================
+        function updateUI() {
+            routeCountEl.textContent = routes.length;
+            
+            const isEditing = mode !== 'none';
+            
+            // Disable/enable buttons based on mode
+            document.getElementById('btn-create-manual').disabled = isEditing;
+            document.getElementById('btn-create-routing').disabled = isEditing;
+            document.getElementById('btn-load-gpx').disabled = isEditing;
+            document.getElementById('btn-export-gpx').disabled = isEditing;
+            
+            if (activeRouteId) {
+                const route = routes.find(r => r.id === activeRouteId);
+                activeRouteEl.textContent = route ? `${route.name || 'Bez názvu'} (ID: ${route.id})` : '-';
+                
+                // Update status bar
+                if (mode === 'creating-manual') {
+                    statusBar.textContent = 'Vytváření trasy (ručně) - klikejte do mapy';
+                } else if (mode === 'creating-routing') {
+                    statusBar.textContent = 'Vytváření trasy (plánovaná) - nastavte start a cíl';
+                } else if (mode === 'editing-manual') {
+                    statusBar.textContent = `Úprava ruční trasy: ${route.name || 'Bez názvu'}`;
+                } else if (mode === 'editing-routing') {
+                    statusBar.textContent = `Úprava plánované trasy: ${route.name || 'Bez názvu'}`;
+                }
+                
+                // Show attributes panel
+                attributesPanel.style.display = 'block';
+                routeNameInput.value = route ? route.name : '';
+                routeColorSelect.value = route ? route.color : 'red';
+                
+                // Enable save and cancel buttons
+                document.getElementById('btn-save-route').disabled = false;
+                document.getElementById('btn-cancel-route').disabled = false;
+            } else {
+                activeRouteEl.textContent = '-';
+                statusBar.textContent = 'Nevybraná trasa';
+                attributesPanel.style.display = 'none';
+                document.getElementById('btn-save-route').disabled = true;
+                document.getElementById('btn-cancel-route').disabled = true;
+            }
+        }
+
+        function showLoading() {
+            loadingIndicator.style.display = 'block';
+        }
+
+        function hideLoading() {
+            loadingIndicator.style.display = 'none';
+        }
+
+        function getColorHex(colorName) {
+            return colorMap[colorName] || colorMap.red;
+        }
+
+        // ======================
+        // ROUTE RENDERING
+        // ======================
+        function renderRoute(route, isActive = false) {
+            // Remove existing layer
+            if (routeLayers[route.id]) {
+                if (routeLayers[route.id].line) {
+                    map.removeLayer(routeLayers[route.id].line);
+                }
+                if (routeLayers[route.id].markers) {
+                    routeLayers[route.id].markers.forEach(m => map.removeLayer(m));
+                }
+            }
+
+            if (route.coordinates.length === 0) return;
+
+            const color = getColorHex(route.color);
+            const latLngs = route.coordinates.map(c => [c.lat, c.lon]);
+
+            // Create polyline
+            const line = L.polyline(latLngs, {
+                color: color,
+                weight: isActive ? 7 : 5,
+                opacity: 0.95
+            }).addTo(map);
+
+            // Add tooltip for inactive routes
+            if (!isActive) {
+                line.bindTooltip(route.name || `Trasa ${route.id}`, {
+                    permanent: false,
+                    direction: 'top',
+                    className: 'route-tooltip'
+                });
+            }
+
+            // Click on line to activate (only if not currently editing)
+            line.on('click', () => {
+                if (mode === 'none') {
+                    activateRoute(route.id);
+                }
+            });
+
+            const markers = [];
+
+            if (isActive) {
+                // For routing mode (both creating and editing), only show start and end markers
+                if ((mode === 'creating-routing' || mode === 'editing-routing') && route.coordinates.length > 0) {
+                    // Only show first and last point as draggable
+                    const firstCoord = route.coordinates[0];
+                    const lastCoord = route.coordinates[route.coordinates.length - 1];
+                    
+                    const startMarker = L.marker([firstCoord.lat, firstCoord.lon], {
+                        draggable: true,
+                        icon: L.divIcon({
+                            className: 'vertex-marker',
+                            html: '<div style="width: 14px; height: 14px; background: white; border: 3px solid ' + color + '; border-radius: 50%;"></div>',
+                            iconSize: [14, 14]
+                        })
+                    }).addTo(map);
+
+                    startMarker.on('dragend', async () => {
+                        const latlng = startMarker.getLatLng();
+                        // Update tempRouteData
+                        if (!tempRouteData) {
+                            tempRouteData = {
+                                start: { lat: latlng.lat, lon: latlng.lng },
+                                end: { lat: lastCoord.lat, lon: lastCoord.lon }
+                            };
+                        } else {
+                            tempRouteData.start = { lat: latlng.lat, lon: latlng.lng };
+                        }
+                        await recalculateRoutingRoute();
+                    });
+
+                    const endMarker = L.marker([lastCoord.lat, lastCoord.lon], {
+                        draggable: true,
+                        icon: L.divIcon({
+                            className: 'vertex-marker',
+                            html: '<div style="width: 14px; height: 14px; background: white; border: 3px solid ' + color + '; border-radius: 50%;"></div>',
+                            iconSize: [14, 14]
+                        })
+                    }).addTo(map);
+
+                    endMarker.on('dragend', async () => {
+                        const latlng = endMarker.getLatLng();
+                        // Update tempRouteData
+                        if (!tempRouteData) {
+                            tempRouteData = {
+                                start: { lat: firstCoord.lat, lon: firstCoord.lon },
+                                end: { lat: latlng.lat, lon: latlng.lng }
+                            };
+                        } else {
+                            tempRouteData.end = { lat: latlng.lat, lon: latlng.lng };
+                        }
+                        await recalculateRoutingRoute();
+                    });
+
+                    markers.push(startMarker, endMarker);
+                } else {
+                    // Manual mode - show all vertex markers
+                    route.coordinates.forEach((coord, index) => {
+                        const marker = L.marker([coord.lat, coord.lon], {
+                            draggable: true,
+                            icon: L.divIcon({
+                                className: 'vertex-marker',
+                                html: '<div style="width: 14px; height: 14px; background: white; border: 3px solid ' + color + '; border-radius: 50%;"></div>',
+                                iconSize: [14, 14]
+                            })
+                        }).addTo(map);
+
+                        marker.on('dragend', () => {
+                            const latlng = marker.getLatLng();
+                            route.coordinates[index] = { lat: latlng.lat, lon: latlng.lng };
+                            renderRoute(route, true);
+                        });
+
+                        markers.push(marker);
+                    });
+
+                    // Add midpoint markers for adding new vertices (only in manual mode)
+                    for (let i = 0; i < route.coordinates.length - 1; i++) {
+                        const c1 = route.coordinates[i];
+                        const c2 = route.coordinates[i + 1];
+                        const midLat = (c1.lat + c2.lat) / 2;
+                        const midLon = (c1.lon + c2.lon) / 2;
+
+                        const midMarker = L.marker([midLat, midLon], {
+                            icon: L.divIcon({
+                                className: 'midpoint-marker',
+                                html: '<div style="width: 10px; height: 10px; background: rgba(255,255,255,0.8); border: 2px solid ' + color + '; border-radius: 50%; cursor: pointer;"></div>',
+                                iconSize: [10, 10]
+                            }),
+                            opacity: 0.7
+                        }).addTo(map);
+
+                        midMarker.on('click', () => {
+                            // Insert new point at this position
+                            route.coordinates.splice(i + 1, 0, { lat: midLat, lon: midLon });
+                            renderRoute(route, true);
+                        });
+
+                        markers.push(midMarker);
+                    }
+                }
+            }
+
+            routeLayers[route.id] = { line, markers };
+        }
+
+        function renderAllRoutes() {
+            routes.forEach(route => {
+                const isActive = route.id === activeRouteId;
+                renderRoute(route, isActive);
+            });
+        }
+
+        // ======================
+        // ROUTE MANAGEMENT
+        // ======================
+        function createRoute(coordinates = [], name = '', color = 'red', routeMode = 'manual') {
+            const route = {
+                id: nextRouteId++,
+                name,
+                color,
+                coordinates,
+                routeMode // 'manual' or 'routing'
+            };
+            routes.push(route);
+            return route;
+        }
+
+        function activateRoute(routeId) {
+            if (mode !== 'none') {
+                // Don't allow activating another route while editing
+                return;
+            }
+            activeRouteId = routeId;
+            const route = routes.find(r => r.id === routeId);
+            if (route) {
+                // Create backup of route before editing (deep copy)
+                routeBackup = {
+                    id: route.id,
+                    name: route.name,
+                    color: route.color,
+                    routeMode: route.routeMode,
+                    coordinates: route.coordinates.map(c => ({ lat: c.lat, lon: c.lon }))
+                };
+                
+                if (route.routeMode === 'routing') {
+                    mode = 'editing-routing';
+                    // Initialize tempRouteData for routing mode
+                    if (route.coordinates.length >= 2) {
+                        tempRouteData = {
+                            start: { ...route.coordinates[0] },
+                            end: { ...route.coordinates[route.coordinates.length - 1] }
+                        };
+                    }
+                } else {
+                    mode = 'editing-manual';
+                }
+            }
+            renderAllRoutes();
+            updateUI();
+        }
+
+        function deactivateRoute() {
+            activeRouteId = null;
+            mode = 'none';
+            tempRouteData = null;
+            routeBackup = null; // Clear backup
+            renderAllRoutes();
+            updateUI();
+        }
+
+        function cancelRouteEditing() {
+            if (mode === 'creating-manual' || mode === 'creating-routing') {
+                // Delete the route being created
+                if (activeRouteId) {
+                    deleteRoute(activeRouteId);
+                }
+            } else if (mode === 'editing-manual' || mode === 'editing-routing') {
+                // Restore route from backup
+                if (routeBackup && activeRouteId) {
+                    const route = routes.find(r => r.id === activeRouteId);
+                    if (route) {
+                        route.name = routeBackup.name;
+                        route.color = routeBackup.color;
+                        route.routeMode = routeBackup.routeMode;
+                        route.coordinates = routeBackup.coordinates.map(c => ({ lat: c.lat, lon: c.lon }));
+                    }
+                }
+                deactivateRoute();
+            }
+            
+            // Clean up routing markers
+            if (tempRouteData) {
+                if (tempRouteData.startMarker) map.removeLayer(tempRouteData.startMarker);
+                if (tempRouteData.endMarker) map.removeLayer(tempRouteData.endMarker);
+            }
+        }
+
+        function deleteRoute(routeId) {
+            const index = routes.findIndex(r => r.id === routeId);
+            if (index !== -1) {
+                routes.splice(index, 1);
+                if (routeLayers[routeId]) {
+                    if (routeLayers[routeId].line) map.removeLayer(routeLayers[routeId].line);
+                    if (routeLayers[routeId].markers) {
+                        routeLayers[routeId].markers.forEach(m => map.removeLayer(m));
+                    }
+                    delete routeLayers[routeId];
+                }
+                if (activeRouteId === routeId) {
+                    deactivateRoute();
+                }
+                updateUI();
+            }
+        }
+
+        // ======================
+        // ROUTING API
+        // ======================
+        async function calculateRoute(start, end) {
+            showLoading();
+            try {
+                const url = new URL('https://api.mapy.com/v1/routing/route');
+                url.searchParams.set('apikey', API_KEY);
+                url.searchParams.set('start', `${start.lon},${start.lat}`);
+                url.searchParams.set('end', `${end.lon},${end.lat}`);
+                url.searchParams.set('routeType', ROUTE_TYPE);
+                url.searchParams.set('format', 'geojson');
+
+                const response = await fetch(url.toString());
+                if (!response.ok) {
+                    throw new Error('Nepodařilo se naplánovat trasu');
+                }
+
+                const data = await response.json();
+                
+                // Extract coordinates from GeoJSON
+                const coords = data.geometry.geometry.coordinates.map(c => ({
+                    lon: c[0],
+                    lat: c[1]
+                }));
+
+                return coords;
+            } catch (error) {
+                alert('Chyba při plánování trasy: ' + error.message);
+                return null;
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // ======================
+        // GPX IMPORT/EXPORT
+        // ======================
+        function exportGPX() {
+            if (routes.length === 0) {
+                alert('Žádné trasy k exportu');
+                return;
+            }
+
+            let gpx = '<?xml version="1.0" encoding="UTF-8"?>\n';
+            gpx += '<gpx version="1.1" creator="MapyEditor" xmlns="http://www.topografix.com/GPX/1/1" xmlns:gpxx="http://www.garmin.com/xmlschemas/GpxExtensions/v3">\n';
+
+            routes.forEach(route => {
+                gpx += '  <trk>\n';
+                gpx += `    <name>${escapeXml(route.name || 'Trasa ' + route.id)}</name>\n`;
+                gpx += '    <extensions>\n';
+                gpx += `      <gpxx:DisplayColor>${route.color}</gpxx:DisplayColor>\n`;
+                gpx += `      <gpxx:RouteMode>${route.routeMode || 'manual'}</gpxx:RouteMode>\n`;
+                gpx += '    </extensions>\n';
+                gpx += '    <trkseg>\n';
+                route.coordinates.forEach(coord => {
+                    gpx += `      <trkpt lat="${coord.lat}" lon="${coord.lon}"></trkpt>\n`;
+                });
+                gpx += '    </trkseg>\n';
+                gpx += '  </trk>\n';
+            });
+
+            gpx += '</gpx>';
+
+            const blob = new Blob([gpx], { type: 'application/gpx+xml' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'routes.gpx';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function escapeXml(text) {
+            return text.replace(/&/g, '&amp;')
+                       .replace(/</g, '&lt;')
+                       .replace(/>/g, '&gt;')
+                       .replace(/"/g, '&quot;')
+                       .replace(/'/g, '&apos;');
+        }
+
+        function importGPX(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(e.target.result, 'text/xml');
+                const tracks = xmlDoc.getElementsByTagName('trk');
+
+                if (tracks.length === 0) {
+                    alert('V GPX souboru nebyly nalezeny žádné trasy');
+                    return;
+                }
+
+                Array.from(tracks).forEach(trk => {
+                    const nameEl = trk.getElementsByTagName('name')[0];
+                    const name = nameEl ? nameEl.textContent : '';
+                    
+                    // Try to read color and routeMode from extensions
+                    let color = 'red'; // default
+                    let routeMode = 'manual'; // default
+                    const extensions = trk.getElementsByTagName('extensions')[0];
+                    if (extensions) {
+                        const displayColorEl = extensions.getElementsByTagName('gpxx:DisplayColor')[0] || 
+                                               extensions.getElementsByTagName('DisplayColor')[0];
+                        if (displayColorEl) {
+                            const colorValue = displayColorEl.textContent.toLowerCase();
+                            if (colorValue === 'red' || colorValue === 'blue' || colorValue === 'green') {
+                                color = colorValue;
+                            }
+                        }
+                        
+                        const routeModeEl = extensions.getElementsByTagName('gpxx:RouteMode')[0] || 
+                                           extensions.getElementsByTagName('RouteMode')[0];
+                        if (routeModeEl) {
+                            const modeValue = routeModeEl.textContent.toLowerCase();
+                            if (modeValue === 'routing' || modeValue === 'manual') {
+                                routeMode = modeValue;
+                            }
+                        }
+                    }
+                    
+                    const trkpts = trk.getElementsByTagName('trkpt');
+                    const coordinates = Array.from(trkpts).map(pt => ({
+                        lat: parseFloat(pt.getAttribute('lat')),
+                        lon: parseFloat(pt.getAttribute('lon'))
+                    }));
+
+                    if (coordinates.length > 0) {
+                        createRoute(coordinates, name, color, routeMode);
+                    }
+                });
+
+                renderAllRoutes();
+                updateUI();
+                
+                // Fit bounds to all routes
+                fitBoundsToRoutes();
+            };
+            reader.readAsText(file);
+        }
+
+        function fitBoundsToRoutes() {
+            if (routes.length === 0) return;
+            
+            const allCoords = [];
+            routes.forEach(route => {
+                route.coordinates.forEach(coord => {
+                    allCoords.push([coord.lat, coord.lon]);
+                });
+            });
+            
+            if (allCoords.length > 0) {
+                const bounds = L.latLngBounds(allCoords);
+                map.fitBounds(bounds, { padding: [50, 50] });
+            }
+        }
+
+        // ======================
+        // MAP INTERACTIONS
+        // ======================
+        map.on('click', async (e) => {
+            // Only allow map clicks in creating modes, not in editing modes
+            if (mode === 'creating-manual') {
+                // Add point to active route
+                const route = routes.find(r => r.id === activeRouteId);
+                if (route) {
+                    route.coordinates.push({
+                        lat: e.latlng.lat,
+                        lon: e.latlng.lng
+                    });
+                    renderRoute(route, true);
+                }
+            } else if (mode === 'creating-routing') {
+                // Set start or end point
+                if (!tempRouteData.start) {
+                    tempRouteData.start = { lat: e.latlng.lat, lon: e.latlng.lng };
+                    tempRouteData.startMarker = L.marker([e.latlng.lat, e.latlng.lng], {
+                        draggable: true,
+                        icon: L.icon({
+                            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
+                            iconSize: [25, 41],
+                            iconAnchor: [12, 41]
+                        })
+                    }).addTo(map);
+                    
+                    tempRouteData.startMarker.on('dragend', async () => {
+                        const latlng = tempRouteData.startMarker.getLatLng();
+                        tempRouteData.start = { lat: latlng.lat, lon: latlng.lng };
+                        if (tempRouteData.end) {
+                            await recalculateRoutingRoute();
+                        }
+                    });
+                    
+                    statusBar.textContent = 'Vytváření trasy (plánovaná) - nastavte cíl';
+                } else if (!tempRouteData.end) {
+                    tempRouteData.end = { lat: e.latlng.lat, lon: e.latlng.lng };
+                    tempRouteData.endMarker = L.marker([e.latlng.lat, e.latlng.lng], {
+                        draggable: true,
+                        icon: L.icon({
+                            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+                            iconSize: [25, 41],
+                            iconAnchor: [12, 41]
+                        })
+                    }).addTo(map);
+                    
+                    tempRouteData.endMarker.on('dragend', async () => {
+                        const latlng = tempRouteData.endMarker.getLatLng();
+                        tempRouteData.end = { lat: latlng.lat, lon: latlng.lng };
+                        await recalculateRoutingRoute();
+                    });
+                    
+                    // Calculate initial route
+                    await recalculateRoutingRoute();
+                }
+            }
+        });
+
+        async function recalculateRoutingRoute() {
+            const coords = await calculateRoute(tempRouteData.start, tempRouteData.end);
+            if (coords) {
+                const route = routes.find(r => r.id === activeRouteId);
+                if (route) {
+                    route.coordinates = coords;
+                    renderRoute(route, true);
+                }
+            }
+        }
+
+        // ======================
+        // BUTTON HANDLERS
+        // ======================
+        document.getElementById('btn-create-manual').addEventListener('click', () => {
+            if (activeRouteId) {
+                deactivateRoute();
+            }
+            const route = createRoute([], 'Nová trasa', 'red', 'manual');
+            activeRouteId = route.id;
+            mode = 'creating-manual';
+            updateUI();
+        });
+
+        document.getElementById('btn-create-routing').addEventListener('click', () => {
+            if (activeRouteId) {
+                deactivateRoute();
+            }
+            const route = createRoute([], 'Nová trasa', 'red', 'routing');
+            activeRouteId = route.id;
+            mode = 'creating-routing';
+            tempRouteData = {
+                start: null,
+                end: null,
+                startMarker: null,
+                endMarker: null
+            };
+            updateUI();
+        });
+
+        document.getElementById('btn-save-route').addEventListener('click', () => {
+            // Clean up routing markers
+            if (tempRouteData) {
+                if (tempRouteData.startMarker) map.removeLayer(tempRouteData.startMarker);
+                if (tempRouteData.endMarker) map.removeLayer(tempRouteData.endMarker);
+                tempRouteData = null;
+            }
+            deactivateRoute();
+        });
+
+        document.getElementById('btn-cancel-route').addEventListener('click', () => {
+            cancelRouteEditing();
+        });
+
+        document.getElementById('btn-load-gpx').addEventListener('click', () => {
+            const input = document.getElementById('gpx-input');
+            if (input.files.length > 0) {
+                importGPX(input.files[0]);
+            } else {
+                alert('Vyberte GPX soubor');
+            }
+        });
+
+        document.getElementById('btn-export-gpx').addEventListener('click', () => {
+            exportGPX();
+        });
+
+        // ======================
+        // ATTRIBUTE HANDLERS
+        // ======================
+        routeNameInput.addEventListener('input', () => {
+            const route = routes.find(r => r.id === activeRouteId);
+            if (route) {
+                route.name = routeNameInput.value;
+                updateUI();
+            }
+        });
+
+        routeColorSelect.addEventListener('change', () => {
+            const route = routes.find(r => r.id === activeRouteId);
+            if (route) {
+                route.color = routeColorSelect.value;
+                renderRoute(route, true);
+            }
+        });
+
+        // ======================
+        // INITIALIZATION
+        // ======================
+        updateUI();
+    </script>
+</body>
+</html>
+
