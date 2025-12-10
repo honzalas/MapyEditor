@@ -522,28 +522,28 @@
             const markers = [];
 
             if (isActive) {
-                // For routing mode (both creating and editing), only show start and end markers
+                // For routing mode (both creating and editing), show start, end, and waypoint markers
                 if ((mode === 'creating-routing' || mode === 'editing-routing') && route.coordinates.length > 0) {
-                    // Only show first and last point as draggable
                     const firstCoord = route.coordinates[0];
                     const lastCoord = route.coordinates[route.coordinates.length - 1];
                     
+                    // Start marker (green)
                     const startMarker = L.marker([firstCoord.lat, firstCoord.lon], {
                         draggable: true,
                         icon: L.divIcon({
                             className: 'vertex-marker',
-                            html: '<div style="width: 14px; height: 14px; background: white; border: 3px solid ' + color + '; border-radius: 50%;"></div>',
-                            iconSize: [14, 14]
+                            html: '<div style="width: 16px; height: 16px; background: #4CAF50; border: 3px solid white; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>',
+                            iconSize: [16, 16]
                         })
                     }).addTo(map);
 
                     startMarker.on('dragend', async () => {
                         const latlng = startMarker.getLatLng();
-                        // Update tempRouteData
                         if (!tempRouteData) {
                             tempRouteData = {
                                 start: { lat: latlng.lat, lon: latlng.lng },
-                                end: { lat: lastCoord.lat, lon: lastCoord.lon }
+                                end: { lat: lastCoord.lat, lon: lastCoord.lon },
+                                waypoints: route.waypoints || []
                             };
                         } else {
                             tempRouteData.start = { lat: latlng.lat, lon: latlng.lng };
@@ -551,22 +551,23 @@
                         await recalculateRoutingRoute();
                     });
 
+                    // End marker (red)
                     const endMarker = L.marker([lastCoord.lat, lastCoord.lon], {
                         draggable: true,
                         icon: L.divIcon({
                             className: 'vertex-marker',
-                            html: '<div style="width: 14px; height: 14px; background: white; border: 3px solid ' + color + '; border-radius: 50%;"></div>',
-                            iconSize: [14, 14]
+                            html: '<div style="width: 16px; height: 16px; background: #F44336; border: 3px solid white; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>',
+                            iconSize: [16, 16]
                         })
                     }).addTo(map);
 
                     endMarker.on('dragend', async () => {
                         const latlng = endMarker.getLatLng();
-                        // Update tempRouteData
                         if (!tempRouteData) {
                             tempRouteData = {
                                 start: { lat: firstCoord.lat, lon: firstCoord.lon },
-                                end: { lat: latlng.lat, lon: latlng.lng }
+                                end: { lat: latlng.lat, lon: latlng.lng },
+                                waypoints: route.waypoints || []
                             };
                         } else {
                             tempRouteData.end = { lat: latlng.lat, lon: latlng.lng };
@@ -575,6 +576,126 @@
                     });
 
                     markers.push(startMarker, endMarker);
+
+                    // Waypoint markers (yellow)
+                    const waypoints = route.waypoints || [];
+                    waypoints.forEach((wp, index) => {
+                        const wpMarker = L.marker([wp.lat, wp.lon], {
+                            draggable: true,
+                            icon: L.divIcon({
+                                className: 'vertex-marker',
+                                html: '<div style="width: 14px; height: 14px; background: #FFC107; border: 3px solid white; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>',
+                                iconSize: [14, 14]
+                            })
+                        }).addTo(map);
+
+                        wpMarker.on('dragend', async () => {
+                            const latlng = wpMarker.getLatLng();
+                            if (!tempRouteData) {
+                                tempRouteData = {
+                                    start: { lat: firstCoord.lat, lon: firstCoord.lon },
+                                    end: { lat: lastCoord.lat, lon: lastCoord.lon },
+                                    waypoints: waypoints.map(w => ({ ...w }))
+                                };
+                            }
+                            tempRouteData.waypoints[index] = { lat: latlng.lat, lon: latlng.lng };
+                            await recalculateRoutingRoute();
+                        });
+
+                        markers.push(wpMarker);
+                    });
+
+                    // Add midpoint markers for creating new waypoints
+                    // Use actual geometry points instead of geometric midpoints
+                    // Divide route into segments based on waypoints
+                    const allPoints = [firstCoord, ...waypoints, lastCoord];
+                    
+                    // For each segment, find the middle point from actual route geometry
+                    for (let i = 0; i < allPoints.length - 1; i++) {
+                        const segmentStart = allPoints[i];
+                        const segmentEnd = allPoints[i + 1];
+                        
+                        // Find indices in coordinates array that are closest to segment start and end
+                        let startIdx = 0;
+                        let endIdx = route.coordinates.length - 1;
+                        
+                        if (i === 0) {
+                            startIdx = 0;
+                        } else {
+                            // Find closest point to this waypoint
+                            let minDist = Infinity;
+                            for (let j = 0; j < route.coordinates.length; j++) {
+                                const dist = Math.sqrt(
+                                    Math.pow(route.coordinates[j].lat - segmentStart.lat, 2) +
+                                    Math.pow(route.coordinates[j].lon - segmentStart.lon, 2)
+                                );
+                                if (dist < minDist) {
+                                    minDist = dist;
+                                    startIdx = j;
+                                }
+                            }
+                        }
+                        
+                        if (i === allPoints.length - 2) {
+                            endIdx = route.coordinates.length - 1;
+                        } else {
+                            // Find closest point to next waypoint
+                            let minDist = Infinity;
+                            for (let j = startIdx; j < route.coordinates.length; j++) {
+                                const dist = Math.sqrt(
+                                    Math.pow(route.coordinates[j].lat - segmentEnd.lat, 2) +
+                                    Math.pow(route.coordinates[j].lon - segmentEnd.lon, 2)
+                                );
+                                if (dist < minDist) {
+                                    minDist = dist;
+                                    endIdx = j;
+                                }
+                            }
+                        }
+                        
+                        // Get middle point from this segment of actual geometry
+                        const midIdx = Math.floor((startIdx + endIdx) / 2);
+                        const midPoint = route.coordinates[midIdx];
+
+                        const midMarker = L.marker([midPoint.lat, midPoint.lon], {
+                            icon: L.divIcon({
+                                className: 'midpoint-marker',
+                                html: '<div style="width: 10px; height: 10px; background: rgba(255,193,7,0.8); border: 2px solid white; border-radius: 50%; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.3);"></div>',
+                                iconSize: [10, 10]
+                            }),
+                            opacity: 0.7
+                        }).addTo(map);
+
+                        midMarker.on('click', async () => {
+                            // Check if we haven't exceeded 15 waypoints limit
+                            const currentWaypoints = route.waypoints || [];
+                            if (currentWaypoints.length >= 15) {
+                                alert('Maximální počet průjezdních bodů je 15');
+                                return;
+                            }
+
+                            // Insert new waypoint at the middle point of actual geometry
+                            const newWaypoint = { lat: midPoint.lat, lon: midPoint.lon };
+                            const updatedWaypoints = [...currentWaypoints];
+                            updatedWaypoints.splice(i, 0, newWaypoint);
+                            
+                            route.waypoints = updatedWaypoints;
+                            
+                            if (!tempRouteData) {
+                                tempRouteData = {
+                                    start: { lat: firstCoord.lat, lon: firstCoord.lon },
+                                    end: { lat: lastCoord.lat, lon: lastCoord.lon },
+                                    waypoints: updatedWaypoints
+                                };
+                            } else {
+                                tempRouteData.waypoints = updatedWaypoints;
+                            }
+                            
+                            await recalculateRoutingRoute();
+                        });
+
+                        markers.push(midMarker);
+                    }
                 } else {
                     // Manual mode - show all vertex markers
                     route.coordinates.forEach((coord, index) => {
@@ -636,13 +757,14 @@
         // ======================
         // ROUTE MANAGEMENT
         // ======================
-        function createRoute(coordinates = [], name = '', color = 'red', routeMode = 'manual') {
+        function createRoute(coordinates = [], name = '', color = 'red', routeMode = 'manual', waypoints = []) {
             const route = {
                 id: nextRouteId++,
                 name,
                 color,
                 coordinates,
-                routeMode // 'manual' or 'routing'
+                routeMode, // 'manual' or 'routing'
+                waypoints // Array of waypoint coordinates (only for routing mode): [{lat, lon}, ...]
             };
             routes.push(route);
             return route;
@@ -662,7 +784,8 @@
                     name: route.name,
                     color: route.color,
                     routeMode: route.routeMode,
-                    coordinates: route.coordinates.map(c => ({ lat: c.lat, lon: c.lon }))
+                    coordinates: route.coordinates.map(c => ({ lat: c.lat, lon: c.lon })),
+                    waypoints: route.waypoints ? route.waypoints.map(w => ({ lat: w.lat, lon: w.lon })) : []
                 };
                 
                 if (route.routeMode === 'routing') {
@@ -671,7 +794,8 @@
                     if (route.coordinates.length >= 2) {
                         tempRouteData = {
                             start: { ...route.coordinates[0] },
-                            end: { ...route.coordinates[route.coordinates.length - 1] }
+                            end: { ...route.coordinates[route.coordinates.length - 1] },
+                            waypoints: route.waypoints ? route.waypoints.map(w => ({ ...w })) : []
                         };
                     }
                 } else {
@@ -706,6 +830,7 @@
                         route.color = routeBackup.color;
                         route.routeMode = routeBackup.routeMode;
                         route.coordinates = routeBackup.coordinates.map(c => ({ lat: c.lat, lon: c.lon }));
+                        route.waypoints = routeBackup.waypoints ? routeBackup.waypoints.map(w => ({ lat: w.lat, lon: w.lon })) : [];
                     }
                 }
                 deactivateRoute();
@@ -715,6 +840,9 @@
             if (tempRouteData) {
                 if (tempRouteData.startMarker) map.removeLayer(tempRouteData.startMarker);
                 if (tempRouteData.endMarker) map.removeLayer(tempRouteData.endMarker);
+                if (tempRouteData.waypointMarkers) {
+                    tempRouteData.waypointMarkers.forEach(m => map.removeLayer(m));
+                }
             }
         }
 
@@ -739,7 +867,7 @@
         // ======================
         // ROUTING API
         // ======================
-        async function calculateRoute(start, end) {
+        async function calculateRoute(start, end, waypoints = []) {
             showLoading();
             try {
                 const url = new URL('https://api.mapy.com/v1/routing/route');
@@ -748,6 +876,14 @@
                 url.searchParams.set('end', `${end.lon},${end.lat}`);
                 url.searchParams.set('routeType', ROUTE_TYPE);
                 url.searchParams.set('format', 'geojson');
+
+                // Add waypoints if present (max 15)
+                if (waypoints && waypoints.length > 0) {
+                    const limitedWaypoints = waypoints.slice(0, 15); // API supports max 15 waypoints
+                    limitedWaypoints.forEach(wp => {
+                        url.searchParams.append('waypoints', `${wp.lon},${wp.lat}`);
+                    });
+                }
 
                 const response = await fetch(url.toString());
                 if (!response.ok) {
@@ -789,6 +925,16 @@
                 gpx += '    <extensions>\n';
                 gpx += `      <gpxx:DisplayColor>${route.color}</gpxx:DisplayColor>\n`;
                 gpx += `      <gpxx:RouteMode>${route.routeMode || 'manual'}</gpxx:RouteMode>\n`;
+                
+                // Save waypoints for routing mode
+                if (route.routeMode === 'routing' && route.waypoints && route.waypoints.length > 0) {
+                    gpx += '      <gpxx:Waypoints>\n';
+                    route.waypoints.forEach(wp => {
+                        gpx += `        <gpxx:Waypoint lat="${wp.lat}" lon="${wp.lon}" />\n`;
+                    });
+                    gpx += '      </gpxx:Waypoints>\n';
+                }
+                
                 gpx += '    </extensions>\n';
                 gpx += '    <trkseg>\n';
                 route.coordinates.forEach(coord => {
@@ -833,9 +979,11 @@
                     const nameEl = trk.getElementsByTagName('name')[0];
                     const name = nameEl ? nameEl.textContent : '';
                     
-                    // Try to read color and routeMode from extensions
+                    // Try to read color, routeMode, and waypoints from extensions
                     let color = 'red'; // default
                     let routeMode = 'manual'; // default
+                    let waypoints = [];
+                    
                     const extensions = trk.getElementsByTagName('extensions')[0];
                     if (extensions) {
                         const displayColorEl = extensions.getElementsByTagName('gpxx:DisplayColor')[0] || 
@@ -855,6 +1003,30 @@
                                 routeMode = modeValue;
                             }
                         }
+                        
+                        // Read waypoints
+                        const waypointsEl = extensions.getElementsByTagName('gpxx:Waypoints')[0] || 
+                                           extensions.getElementsByTagName('Waypoints')[0];
+                        if (waypointsEl) {
+                            const waypointEls = waypointsEl.getElementsByTagName('gpxx:Waypoint');
+                            if (waypointEls.length === 0) {
+                                // Try without namespace
+                                const waypointEls2 = waypointsEl.getElementsByTagName('Waypoint');
+                                Array.from(waypointEls2).forEach(wpEl => {
+                                    waypoints.push({
+                                        lat: parseFloat(wpEl.getAttribute('lat')),
+                                        lon: parseFloat(wpEl.getAttribute('lon'))
+                                    });
+                                });
+                            } else {
+                                Array.from(waypointEls).forEach(wpEl => {
+                                    waypoints.push({
+                                        lat: parseFloat(wpEl.getAttribute('lat')),
+                                        lon: parseFloat(wpEl.getAttribute('lon'))
+                                    });
+                                });
+                            }
+                        }
                     }
                     
                     const trkpts = trk.getElementsByTagName('trkpt');
@@ -864,7 +1036,7 @@
                     }));
 
                     if (coordinates.length > 0) {
-                        createRoute(coordinates, name, color, routeMode);
+                        createRoute(coordinates, name, color, routeMode, waypoints);
                     }
                 });
 
@@ -954,11 +1126,12 @@
         });
 
         async function recalculateRoutingRoute() {
-            const coords = await calculateRoute(tempRouteData.start, tempRouteData.end);
+            const coords = await calculateRoute(tempRouteData.start, tempRouteData.end, tempRouteData.waypoints || []);
             if (coords) {
                 const route = routes.find(r => r.id === activeRouteId);
                 if (route) {
                     route.coordinates = coords;
+                    route.waypoints = tempRouteData.waypoints || [];
                     renderRoute(route, true);
                 }
             }
@@ -981,14 +1154,16 @@
             if (activeRouteId) {
                 deactivateRoute();
             }
-            const route = createRoute([], 'Nová trasa', 'red', 'routing');
+            const route = createRoute([], 'Nová trasa', 'red', 'routing', []);
             activeRouteId = route.id;
             mode = 'creating-routing';
             tempRouteData = {
                 start: null,
                 end: null,
+                waypoints: [],
                 startMarker: null,
-                endMarker: null
+                endMarker: null,
+                waypointMarkers: []
             };
             updateUI();
         });
