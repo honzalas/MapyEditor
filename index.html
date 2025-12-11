@@ -851,13 +851,6 @@
         // ROUTE RENDERING
         // ======================
         function renderRoute(route, isActive = false) {
-            console.log('--- renderRoute called ---');
-            console.log('Route:', route.id, route.name);
-            console.log('isActive:', isActive);
-            console.log('Current mode:', mode);
-            console.log('Route mode:', route.routeMode);
-            console.log('Coords length:', route.coordinates.length);
-            
             // Remove existing layer
             if (routeLayers[route.id]) {
                 if (routeLayers[route.id].line) {
@@ -898,22 +891,13 @@
 
             const markers = [];
 
-            console.log('Checking if should create markers...');
-            console.log('isActive:', isActive);
-            
             if (isActive) {
-                console.log('Route is ACTIVE');
-                console.log('Mode check (creating-routing || editing-routing):', mode === 'creating-routing' || mode === 'editing-routing');
-                console.log('Coords check (> 0):', route.coordinates.length > 0);
-                
                 // For routing mode (both creating and editing), show start, end, and waypoint markers
                 if ((mode === 'creating-routing' || mode === 'editing-routing') && route.coordinates.length > 0) {
-                    console.log('✓✓✓ CREATING START/END MARKERS FOR ROUTING MODE ✓✓✓');
                     const firstCoord = route.coordinates[0];
                     const lastCoord = route.coordinates[route.coordinates.length - 1];
                     
                     // Start marker (green)
-                    console.log('Creating start marker at:', firstCoord);
                     const startMarker = L.marker([firstCoord.lat, firstCoord.lon], {
                         draggable: true,
                         icon: L.divIcon({
@@ -982,9 +966,6 @@
                     });
 
                     markers.push(startMarker, endMarker);
-                    
-                    console.log('Start and end markers added to map');
-                    console.log('Markers array length:', markers.length);
                     
                     // Store markers in tempRouteData
                     if (tempRouteData) {
@@ -1119,7 +1100,6 @@
                         markers.push(midMarker);
                     }
                 } else {
-                    console.log('❌ NOT in routing mode - checking for manual mode');
                     // Manual mode - show all vertex markers
                     route.coordinates.forEach((coord, index) => {
                         const marker = L.marker([coord.lat, coord.lon], {
@@ -1172,34 +1152,12 @@
                         markers.push(midMarker);
                     }
                 }
-            } else {
-                console.log('Route is NOT active, skipping marker creation');
             }
 
-            console.log('Final markers count:', markers.length);
             routeLayers[route.id] = { line, markers };
         }
 
         function renderAllRoutes() {
-            console.log('=== renderAllRoutes called ===');
-            
-            // Clean up temporary markers ONCE before rendering all routes
-            if ((mode === 'creating-routing' || mode === 'editing-routing') && tempRouteData) {
-                console.log('Cleaning up old temporary markers...');
-                if (tempRouteData.startMarker) {
-                    map.removeLayer(tempRouteData.startMarker);
-                    tempRouteData.startMarker = null;
-                }
-                if (tempRouteData.endMarker) {
-                    map.removeLayer(tempRouteData.endMarker);
-                    tempRouteData.endMarker = null;
-                }
-                if (tempRouteData.waypointMarkers) {
-                    tempRouteData.waypointMarkers.forEach(m => map.removeLayer(m));
-                    tempRouteData.waypointMarkers = [];
-                }
-            }
-            
             routes.forEach(route => {
                 const isActive = route.id === activeRouteId;
                 renderRoute(route, isActive);
@@ -1223,27 +1181,16 @@
         }
 
         function activateRoute(routeId) {
-            console.log('=== activateRoute called ===');
-            console.log('Route ID:', routeId);
-            console.log('Current mode:', mode);
-            
             if (mode !== 'none') {
                 // Don't allow activating another route while editing
-                console.log('Cannot activate - already in editing mode');
                 return;
             }
+            
+            const previousActiveId = activeRouteId;
             activeRouteId = routeId;
             const route = routes.find(r => r.id === routeId);
             
             if (route) {
-                console.log('Route found:', {
-                    id: route.id,
-                    name: route.name,
-                    routeMode: route.routeMode,
-                    coordsLength: route.coordinates.length,
-                    waypointsLength: route.waypoints ? route.waypoints.length : 0
-                });
-                
                 // Create backup of route before editing (deep copy)
                 routeBackup = {
                     id: route.id,
@@ -1254,8 +1201,20 @@
                     waypoints: route.waypoints ? route.waypoints.map(w => ({ lat: w.lat, lon: w.lon })) : []
                 };
                 
+                // Clean up old temporary markers before setting new mode
+                if (tempRouteData) {
+                    if (tempRouteData.startMarker) {
+                        map.removeLayer(tempRouteData.startMarker);
+                    }
+                    if (tempRouteData.endMarker) {
+                        map.removeLayer(tempRouteData.endMarker);
+                    }
+                    if (tempRouteData.waypointMarkers) {
+                        tempRouteData.waypointMarkers.forEach(m => map.removeLayer(m));
+                    }
+                }
+                
                 if (route.routeMode === 'routing') {
-                    console.log('Setting mode to editing-routing');
                     mode = 'editing-routing';
                     // Always initialize tempRouteData for routing mode if we have at least 2 points
                     // First and last coordinates are always start and end, waypoints are in between
@@ -1270,28 +1229,44 @@
                             endMarker: null,
                             waypointMarkers: []
                         };
-                        console.log('tempRouteData initialized:', tempRouteData);
-                    } else {
-                        console.log('NOT initializing tempRouteData - not enough coords:', route.coordinates.length);
                     }
                 } else {
-                    console.log('Setting mode to editing-manual');
                     mode = 'editing-manual';
                 }
-            } else {
-                console.log('Route NOT found!');
             }
-            console.log('Calling renderAllRoutes...');
-            renderAllRoutes();
+            
+            // Optimized: Only re-render affected routes instead of all routes
+            // Re-render previous active route (if any) as inactive
+            if (previousActiveId && previousActiveId !== routeId) {
+                const prevRoute = routes.find(r => r.id === previousActiveId);
+                if (prevRoute) {
+                    renderRoute(prevRoute, false);
+                }
+            }
+            
+            // Re-render new active route
+            if (route) {
+                renderRoute(route, true);
+            }
+            
             updateUI();
         }
 
         function deactivateRoute() {
+            const previousActiveId = activeRouteId;
             activeRouteId = null;
             mode = 'none';
             tempRouteData = null;
             routeBackup = null; // Clear backup
-            renderAllRoutes();
+            
+            // Optimized: Only re-render the previously active route
+            if (previousActiveId) {
+                const prevRoute = routes.find(r => r.id === previousActiveId);
+                if (prevRoute) {
+                    renderRoute(prevRoute, false);
+                }
+            }
+            
             updateUI();
         }
 
@@ -1458,8 +1433,6 @@
                 const writable = await handle.createWritable();
                 await writable.write(blob);
                 await writable.close();
-                
-                console.log('Soubor uložen');
             } catch (err) {
                 if (err.name !== 'AbortError') {
                     console.error('Chyba při ukládání:', err);
