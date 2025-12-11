@@ -35,6 +35,22 @@
             height: 100%;
         }
 
+        #map.create-mode {
+            cursor: crosshair !important;
+        }
+
+        #map.create-mode * {
+            cursor: crosshair !important;
+        }
+
+        #map.ctrl-mode {
+            cursor: crosshair !important;
+        }
+
+        #map.ctrl-mode * {
+            cursor: crosshair !important;
+        }
+
         #status-bar {
             position: absolute;
             top: 10px;
@@ -318,6 +334,14 @@
             margin: 0;
         }
 
+        .leaflet-marker-icon.vertex-marker {
+            cursor: pointer !important;
+        }
+
+        .leaflet-marker-icon.midpoint-marker {
+            cursor: copy !important;
+        }
+
         .dropzone-loading {
             display: flex;
             flex-direction: column;
@@ -509,9 +533,10 @@
         let routes = [];
         let nextRouteId = 1;
         let activeRouteId = null;
-        let mode = 'none'; // 'none', 'creating-manual', 'creating-routing', 'editing-manual', 'editing-routing'
+        let mode = 'none'; // 'none', 'editing-manual', 'editing-routing'
         let tempRouteData = null; // Temporary data for route being created
         let routeBackup = null; // Backup of route before editing (for cancel)
+        let ctrlPressed = false; // Track CTRL key state
 
         const colorMap = {
             red: '#D32F2F',
@@ -616,6 +641,19 @@
             routeCountEl.textContent = routes.length;
             
             const isEditing = mode !== 'none';
+            const route = activeRouteId ? routes.find(r => r.id === activeRouteId) : null;
+            const needsCrosshair = isEditing && route && (
+                (route.routeMode === 'manual' && route.coordinates.length < 2) ||
+                (route.routeMode === 'routing' && route.coordinates.length < 2)
+            );
+            
+            // Update map cursor
+            const mapElement = document.getElementById('map');
+            if (needsCrosshair || (isEditing && ctrlPressed)) {
+                mapElement.classList.add('create-mode');
+            } else {
+                mapElement.classList.remove('create-mode');
+            }
             
             // Disable/enable buttons based on mode
             document.getElementById('btn-create-manual').disabled = isEditing;
@@ -628,14 +666,20 @@
                 activeRouteEl.textContent = route ? `${route.name || 'Bez názvu'} (ID: ${route.id})` : '-';
                 
                 // Update status bar
-                if (mode === 'creating-manual') {
-                    statusBar.textContent = 'Vytváření trasy (ručně) - klikejte do mapy';
-                } else if (mode === 'creating-routing') {
-                    statusBar.textContent = 'Vytváření trasy (plánovaná) - nastavte start a cíl';
-                } else if (mode === 'editing-manual') {
-                    statusBar.textContent = `Úprava ruční trasy: ${route.name || 'Bez názvu'}`;
+                if (mode === 'editing-manual') {
+                    if (route.coordinates.length < 2) {
+                        statusBar.textContent = `Vytváření ruční trasy: ${route.name || 'Bez názvu'} - klikejte do mapy`;
+                    } else {
+                        statusBar.textContent = `Úprava ruční trasy: ${route.name || 'Bez názvu'}`;
+                    }
                 } else if (mode === 'editing-routing') {
-                    statusBar.textContent = `Úprava plánované trasy: ${route.name || 'Bez názvu'}`;
+                    if (route.coordinates.length === 0) {
+                        statusBar.textContent = `Vytváření plánované trasy: ${route.name || 'Bez názvu'} - nastavte start`;
+                    } else if (route.coordinates.length === 1) {
+                        statusBar.textContent = `Vytváření plánované trasy: ${route.name || 'Bez názvu'} - nastavte cíl`;
+                    } else {
+                        statusBar.textContent = `Úprava plánované trasy: ${route.name || 'Bez názvu'}`;
+                    }
                 }
                 
                 // Show attributes panel
@@ -678,6 +722,22 @@
                 }
                 if (routeLayers[route.id].markers) {
                     routeLayers[route.id].markers.forEach(m => map.removeLayer(m));
+                }
+            }
+
+            // Clean up temporary markers for creating-routing mode
+            if ((mode === 'creating-routing' || mode === 'editing-routing') && tempRouteData) {
+                if (tempRouteData.startMarker) {
+                    map.removeLayer(tempRouteData.startMarker);
+                    tempRouteData.startMarker = null;
+                }
+                if (tempRouteData.endMarker) {
+                    map.removeLayer(tempRouteData.endMarker);
+                    tempRouteData.endMarker = null;
+                }
+                if (tempRouteData.waypointMarkers) {
+                    tempRouteData.waypointMarkers.forEach(m => map.removeLayer(m));
+                    tempRouteData.waypointMarkers = [];
                 }
             }
 
@@ -733,10 +793,13 @@
                             tempRouteData = {
                                 start: { lat: latlng.lat, lon: latlng.lng },
                                 end: { lat: lastCoord.lat, lon: lastCoord.lon },
-                                waypoints: route.waypoints || []
+                                waypoints: route.waypoints || [],
+                                startMarker: startMarker,
+                                endMarker: null
                             };
                         } else {
                             tempRouteData.start = { lat: latlng.lat, lon: latlng.lng };
+                            tempRouteData.startMarker = startMarker;
                         }
                         await recalculateRoutingRoute();
                     });
@@ -757,15 +820,24 @@
                             tempRouteData = {
                                 start: { lat: firstCoord.lat, lon: firstCoord.lon },
                                 end: { lat: latlng.lat, lon: latlng.lng },
-                                waypoints: route.waypoints || []
+                                waypoints: route.waypoints || [],
+                                startMarker: null,
+                                endMarker: endMarker
                             };
                         } else {
                             tempRouteData.end = { lat: latlng.lat, lon: latlng.lng };
+                            tempRouteData.endMarker = endMarker;
                         }
                         await recalculateRoutingRoute();
                     });
 
                     markers.push(startMarker, endMarker);
+                    
+                    // Store markers in tempRouteData
+                    if (tempRouteData) {
+                        tempRouteData.startMarker = startMarker;
+                        tempRouteData.endMarker = endMarker;
+                    }
 
                     // Waypoint markers (yellow)
                     const waypoints = route.waypoints || [];
@@ -850,7 +922,7 @@
                         const midMarker = L.marker([midPoint.lat, midPoint.lon], {
                             icon: L.divIcon({
                                 className: 'midpoint-marker',
-                                html: '<div style="width: 10px; height: 10px; background: rgba(255,193,7,0.8); border: 2px solid white; border-radius: 50%; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.3);"></div>',
+                                html: '<div style="width: 10px; height: 10px; background: rgba(255,193,7,0.8); border: 2px solid white; border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,0.3);"></div>',
                                 iconSize: [10, 10]
                             }),
                             opacity: 0.7
@@ -917,7 +989,7 @@
                         const midMarker = L.marker([midLat, midLon], {
                             icon: L.divIcon({
                                 className: 'midpoint-marker',
-                                html: '<div style="width: 10px; height: 10px; background: rgba(255,255,255,0.8); border: 2px solid ' + color + '; border-radius: 50%; cursor: pointer;"></div>',
+                                html: '<div style="width: 10px; height: 10px; background: rgba(255,255,255,0.8); border: 2px solid ' + color + '; border-radius: 50%;"></div>',
                                 iconSize: [10, 10]
                             }),
                             opacity: 0.7
@@ -1006,15 +1078,13 @@
         }
 
         function cancelRouteEditing() {
-            if (mode === 'creating-manual' || mode === 'creating-routing') {
-                // Delete the route being created
-                if (activeRouteId) {
+            if (mode === 'editing-manual' || mode === 'editing-routing') {
+                const route = routes.find(r => r.id === activeRouteId);
+                // If route is empty/incomplete, delete it
+                if (route && route.coordinates.length < 2) {
                     deleteRoute(activeRouteId);
-                }
-            } else if (mode === 'editing-manual' || mode === 'editing-routing') {
-                // Restore route from backup
-                if (routeBackup && activeRouteId) {
-                    const route = routes.find(r => r.id === activeRouteId);
+                } else if (routeBackup && activeRouteId) {
+                    // Restore route from backup
                     if (route) {
                         route.name = routeBackup.name;
                         route.color = routeBackup.color;
@@ -1435,58 +1505,88 @@
         // MAP INTERACTIONS
         // ======================
         map.on('click', async (e) => {
-            // Only allow map clicks in creating modes, not in editing modes
-            if (mode === 'creating-manual') {
-                // Add point to active route
-                const route = routes.find(r => r.id === activeRouteId);
-                if (route) {
+            const route = routes.find(r => r.id === activeRouteId);
+            if (!route) return;
+            
+            // Manual route mode
+            if (mode === 'editing-manual') {
+                // Allow adding points:
+                // - Always if less than 2 points (initial creation)
+                // - With CTRL if 2+ points exist
+                if (route.coordinates.length < 2 || ctrlPressed) {
                     route.coordinates.push({
                         lat: e.latlng.lat,
                         lon: e.latlng.lng
                     });
                     renderRoute(route, true);
+                    updateUI();
                 }
-            } else if (mode === 'creating-routing') {
-                // Set start or end point
-                if (!tempRouteData.start) {
-                    tempRouteData.start = { lat: e.latlng.lat, lon: e.latlng.lng };
-                    tempRouteData.startMarker = L.marker([e.latlng.lat, e.latlng.lng], {
-                        draggable: true,
-                        icon: L.icon({
-                            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
-                            iconSize: [25, 41],
-                            iconAnchor: [12, 41]
-                        })
-                    }).addTo(map);
-                    
-                    tempRouteData.startMarker.on('dragend', async () => {
-                        const latlng = tempRouteData.startMarker.getLatLng();
-                        tempRouteData.start = { lat: latlng.lat, lon: latlng.lng };
-                        if (tempRouteData.end) {
-                            await recalculateRoutingRoute();
-                        }
+            }
+            
+            // Routing mode
+            else if (mode === 'editing-routing') {
+                const numPoints = route.coordinates.length;
+                
+                // First two points don't need CTRL
+                if (numPoints === 0) {
+                    // Add start point
+                    route.coordinates.push({
+                        lat: e.latlng.lat,
+                        lon: e.latlng.lng
                     });
+                    if (!tempRouteData) {
+                        tempRouteData = { waypoints: [] };
+                    }
+                    renderRoute(route, true);
+                    updateUI();
+                }
+                else if (numPoints === 1) {
+                    // Add end point and calculate initial route
+                    const start = route.coordinates[0];
+                    const end = { lat: e.latlng.lat, lon: e.latlng.lng };
                     
-                    statusBar.textContent = 'Vytváření trasy (plánovaná) - nastavte cíl';
-                } else if (!tempRouteData.end) {
-                    tempRouteData.end = { lat: e.latlng.lat, lon: e.latlng.lng };
-                    tempRouteData.endMarker = L.marker([e.latlng.lat, e.latlng.lng], {
-                        draggable: true,
-                        icon: L.icon({
-                            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
-                            iconSize: [25, 41],
-                            iconAnchor: [12, 41]
-                        })
-                    }).addTo(map);
+                    tempRouteData = {
+                        start: { ...start },
+                        end: { ...end },
+                        waypoints: []
+                    };
                     
-                    tempRouteData.endMarker.on('dragend', async () => {
-                        const latlng = tempRouteData.endMarker.getLatLng();
-                        tempRouteData.end = { lat: latlng.lat, lon: latlng.lng };
-                        await recalculateRoutingRoute();
-                    });
+                    const coords = await calculateRoute(tempRouteData.start, tempRouteData.end, []);
+                    if (coords) {
+                        route.coordinates = coords;
+                        route.waypoints = [];
+                        renderRoute(route, true);
+                        updateUI();
+                    }
+                }
+                // Further points need CTRL - extend route
+                else if (ctrlPressed) {
+                    // Check waypoint limit
+                    const currentWaypoints = route.waypoints || [];
+                    if (currentWaypoints.length >= 15) {
+                        alert('Maximální počet průjezdních bodů je 15');
+                        return;
+                    }
                     
-                    // Calculate initial route
-                    await recalculateRoutingRoute();
+                    // Current end becomes last waypoint
+                    const currentEnd = route.coordinates[route.coordinates.length - 1];
+                    const newWaypoints = [...currentWaypoints, { lat: currentEnd.lat, lon: currentEnd.lon }];
+                    
+                    // New click becomes new end
+                    const newEnd = { lat: e.latlng.lat, lon: e.latlng.lng };
+                    
+                    // Update tempRouteData
+                    tempRouteData.end = newEnd;
+                    tempRouteData.waypoints = newWaypoints;
+                    
+                    // Recalculate route
+                    const coords = await calculateRoute(tempRouteData.start, tempRouteData.end, tempRouteData.waypoints);
+                    if (coords) {
+                        route.coordinates = coords;
+                        route.waypoints = newWaypoints;
+                        renderRoute(route, true);
+                        updateUI();
+                    }
                 }
             }
         });
@@ -1510,10 +1610,8 @@
             if (activeRouteId) {
                 deactivateRoute();
             }
-            const route = createRoute([], 'Nová trasa', 'red', 'manual');
-            activeRouteId = route.id;
-            mode = 'creating-manual';
-            updateUI();
+            const route = createRoute([], 'Nová trasa', 'red', 'manual', []);
+            activateRoute(route.id);
         });
 
         document.getElementById('btn-create-routing').addEventListener('click', () => {
@@ -1521,17 +1619,7 @@
                 deactivateRoute();
             }
             const route = createRoute([], 'Nová trasa', 'red', 'routing', []);
-            activeRouteId = route.id;
-            mode = 'creating-routing';
-            tempRouteData = {
-                start: null,
-                end: null,
-                waypoints: [],
-                startMarker: null,
-                endMarker: null,
-                waypointMarkers: []
-            };
-            updateUI();
+            activateRoute(route.id);
         });
 
         document.getElementById('btn-save-route').addEventListener('click', () => {
@@ -1639,6 +1727,28 @@
         // ======================
         // INITIALIZATION
         // ======================
+        
+        // CTRL key tracking for adding points
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Control' || e.ctrlKey) {
+                ctrlPressed = true;
+                updateUI();
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (e.key === 'Control' || !e.ctrlKey) {
+                ctrlPressed = false;
+                updateUI();
+            }
+        });
+
+        // Reset CTRL state when window loses focus
+        window.addEventListener('blur', () => {
+            ctrlPressed = false;
+            updateUI();
+        });
+
         updateUI();
     </script>
 </body>
