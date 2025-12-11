@@ -426,7 +426,25 @@
         .context-menu-item svg {
             width: 16px;
             height: 16px;
+        }
+        
+        #context-menu-delete svg {
             color: #D32F2F;
+        }
+        
+        #context-menu-split svg {
+            color: #2196F3;
+        }
+
+        .help-hint {
+            font-size: 12px;
+            color: #b0b0b0;
+            margin-top: 8px;
+            line-height: 1.5;
+        }
+
+        .help-hint-item {
+            margin-bottom: 4px;
         }
 
         @media (max-width: 768px) {
@@ -458,6 +476,16 @@
                         <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
                     </svg>
                     Smazat bod
+                </div>
+                <div class="context-menu-item" id="context-menu-split">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="6" cy="6" r="3"></circle>
+                        <circle cx="6" cy="18" r="3"></circle>
+                        <line x1="20" y1="4" x2="8.12" y2="15.88"></line>
+                        <line x1="14.47" y1="14.48" x2="20" y2="20"></line>
+                        <line x1="8.12" y1="8.12" x2="12" y2="12"></line>
+                    </svg>
+                    Rozdělit trasu
                 </div>
             </div>
         </div>
@@ -556,6 +584,10 @@
                 <div class="button-row">
                     <button class="success btn-main" id="btn-save-route" disabled>Uložit trasu</button>
                     <button class="muted btn-secondary" id="btn-cancel-route" disabled>Storno</button>
+                </div>
+                <div class="help-hint">
+                    <div class="help-hint-item">💡 <strong>Ctrl + klik</strong> – přidá nový bod</div>
+                    <div class="help-hint-item">💡 <strong>Pravé tlačítko</strong> – mazání bodu</div>
                 </div>
             </div>
         </div>
@@ -783,6 +815,118 @@
             }
             hideContextMenu();
         });
+        
+        // Context menu split action
+        document.getElementById('context-menu-split').addEventListener('click', async (e) => {
+            e.stopPropagation();
+            if (contextMenuData) {
+                await splitRoute(contextMenuData);
+            }
+            hideContextMenu();
+        });
+        
+        // Function to split route at a point
+        async function splitRoute(data) {
+            const route = routes.find(r => r.id === activeRouteId);
+            if (!route) return;
+            
+            // Determine the split index based on route mode
+            let splitIndex;
+            
+            if (route.routeMode === 'routing') {
+                // For routing mode: start=0, waypoints=1..n, end=last
+                const waypoints = route.waypoints || [];
+                const totalPoints = 2 + waypoints.length;
+                
+                if (data.type === 'start' || data.type === 'end') {
+                    alert('Nelze rozdělit trasu na prvním nebo posledním bodě.');
+                    return;
+                }
+                
+                if (data.type !== 'waypoint') {
+                    return; // Safety check
+                }
+                
+                // We're splitting at a waypoint
+                const waypointIndex = data.index;
+                
+                // Split waypoints into two groups
+                const waypoints1 = waypoints.slice(0, waypointIndex);
+                const waypoints2 = waypoints.slice(waypointIndex + 1);
+                
+                // First route: original start -> waypoints up to split point -> split point as end
+                const start1 = route.coordinates[0];
+                const end1 = waypoints[waypointIndex];
+                
+                // Second route: split point as start -> remaining waypoints -> original end
+                const start2 = waypoints[waypointIndex];
+                const end2 = route.coordinates[route.coordinates.length - 1];
+                
+                // Show loading indicator
+                showLoading();
+                
+                try {
+                    // Recalculate both routes
+                    const coords1 = await calculateRoute(start1, end1, waypoints1);
+                    const coords2 = await calculateRoute(start2, end2, waypoints2);
+                    
+                    if (!coords1 || !coords2) {
+                        alert('Nepodařilo se přeplánovat rozdělené trasy.');
+                        return;
+                    }
+                    
+                    // Update first route
+                    route.coordinates = coords1;
+                    route.waypoints = waypoints1;
+                    
+                    // Create second route with recalculated geometry
+                    const newRoute = createRoute(
+                        coords2,
+                        route.name + ' (2)',
+                        route.color,
+                        route.routeMode,
+                        waypoints2
+                    );
+                    
+                } catch (error) {
+                    alert('Chyba při rozdělování trasy: ' + error.message);
+                } finally {
+                    hideLoading();
+                }
+                
+            } else {
+                // Manual mode - simple coordinate split
+                if (data.index === 0 || data.index === route.coordinates.length - 1) {
+                    alert('Nelze rozdělit trasu na prvním nebo posledním bodě.');
+                    return;
+                }
+                
+                splitIndex = data.index;
+                
+                // Split coordinates
+                const coords1 = route.coordinates.slice(0, splitIndex + 1);
+                const coords2 = route.coordinates.slice(splitIndex);
+                
+                // Update first route with first part
+                route.coordinates = coords1;
+                
+                // Create second route
+                const newRoute = createRoute(
+                    coords2,
+                    route.name + ' (2)',
+                    route.color,
+                    route.routeMode,
+                    []
+                );
+            }
+            
+            // Exit editing mode
+            deactivateRoute();
+            
+            // Render all routes to show both new routes
+            renderAllRoutes();
+            updateUI();
+        }
         
         // Function to delete a point and reorganize route
         async function deletePoint(data) {
@@ -1101,13 +1245,33 @@
                     }
                 } else {
                     // Manual mode - show all vertex markers
+                    // First point = green (start), last point = red (end), middle points = yellow (waypoints)
                     route.coordinates.forEach((coord, index) => {
+                        const isFirst = index === 0;
+                        const isLast = index === route.coordinates.length - 1;
+                        const isMiddle = !isFirst && !isLast;
+                        
+                        let markerColor, markerSize;
+                        if (isFirst) {
+                            // Start marker - green
+                            markerColor = '#4CAF50';
+                            markerSize = 16;
+                        } else if (isLast) {
+                            // End marker - red
+                            markerColor = '#F44336';
+                            markerSize = 16;
+                        } else {
+                            // Middle points - yellow
+                            markerColor = '#FFC107';
+                            markerSize = 14;
+                        }
+                        
                         const marker = L.marker([coord.lat, coord.lon], {
                             draggable: true,
                             icon: L.divIcon({
                                 className: 'vertex-marker',
-                                html: '<div style="width: 14px; height: 14px; background: white; border: 3px solid ' + color + '; border-radius: 50%;"></div>',
-                                iconSize: [14, 14]
+                                html: '<div style="width: ' + markerSize + 'px; height: ' + markerSize + 'px; background: ' + markerColor + '; border: 3px solid white; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>',
+                                iconSize: [markerSize, markerSize]
                             })
                         }).addTo(map);
 
@@ -1137,7 +1301,7 @@
                         const midMarker = L.marker([midLat, midLon], {
                             icon: L.divIcon({
                                 className: 'midpoint-marker',
-                                html: '<div style="width: 10px; height: 10px; background: rgba(255,255,255,0.8); border: 2px solid ' + color + '; border-radius: 50%;"></div>',
+                                html: '<div style="width: 10px; height: 10px; background: rgba(255,193,7,0.8); border: 2px solid white; border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,0.3);"></div>',
                                 iconSize: [10, 10]
                             }),
                             opacity: 0.7
