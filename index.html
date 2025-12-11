@@ -71,6 +71,50 @@
             color: #e0e0e0;
         }
 
+        .panel-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+            justify-content: space-between;
+        }
+
+        .panel-header-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .panel-header-icon {
+            width: 28px;
+            height: 28px;
+            background: linear-gradient(135deg, #2196F3, #4CAF50);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        .panel-header h3 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+            color: #e0e0e0;
+        }
+
+        .about-link {
+            color: #2196F3;
+            text-decoration: none;
+            font-size: 13px;
+            transition: color 0.2s;
+            white-space: nowrap;
+        }
+
+        .about-link:hover {
+            color: #4CAF50;
+        }
+
         .info-line {
             display: flex;
             justify-content: space-between;
@@ -161,6 +205,24 @@
             flex: 1;
         }
 
+        .button-compact {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .button-compact button {
+            flex: 1;
+            margin-bottom: 0;
+            font-size: 13px;
+            padding: 8px;
+        }
+
+        .button-compact button svg {
+            vertical-align: middle;
+            margin-right: 4px;
+        }
+
         button:disabled {
             background: #e0e0e0 !important;
             color: #9e9e9e !important;
@@ -206,6 +268,82 @@
             color: #e0e0e0;
             border: 1px solid #555;
             border-radius: 4px;
+        }
+
+        .dropzone {
+            border: 2px dashed #555;
+            border-radius: 8px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: #2d2d2d;
+            margin-bottom: 12px;
+            display: none;
+        }
+
+        .dropzone.visible {
+            display: block;
+        }
+
+        .dropzone:hover {
+            border-color: #2196F3;
+            background: #353535;
+        }
+
+        .dropzone.dragover {
+            border-color: #4CAF50;
+            background: #2d4030;
+            transform: scale(1.02);
+        }
+
+        .dropzone-content {
+            pointer-events: none;
+        }
+
+        .dropzone svg {
+            color: #b0b0b0;
+            margin-bottom: 12px;
+        }
+
+        .dropzone-text {
+            color: #e0e0e0;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .dropzone-hint {
+            color: #888;
+            font-size: 12px;
+            margin: 0;
+        }
+
+        .dropzone-loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .dropzone-loading p {
+            color: #e0e0e0;
+            margin-top: 12px;
+            font-size: 14px;
+        }
+
+        .spinner {
+            border: 3px solid #555;
+            border-top: 3px solid #2196F3;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
 
         #loading-indicator {
@@ -260,7 +398,13 @@
         </div>
         <div id="right-panel">
             <div class="panel-section">
-                <h3>Informace</h3>
+                <div class="panel-header">
+                    <div class="panel-header-left">
+                        <div class="panel-header-icon">🗺️</div>
+                        <h3>MapyEditor</h3>
+                    </div>
+                    <a href="About.html" class="about-link" target="_blank">ℹ️ O programu</a>
+                </div>
                 <div class="info-line">
                     <span class="info-label">Počet tras:</span>
                     <span class="info-value" id="route-count">0</span>
@@ -269,12 +413,65 @@
                     <span class="info-label">Aktivní trasa:</span>
                     <span class="info-value" id="active-route">-</span>
                 </div>
+                <div class="button-compact" style="margin-top: 12px;">
+                    <button class="secondary" id="btn-import-gpx">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        Nahrát
+                    </button>
+                    <button class="secondary" id="btn-export-gpx">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                        Uložit
+                    </button>
+                </div>
+            </div>
+
+            <div class="panel-section" id="import-panel" style="display: none;">
+                <h3>Import GPX</h3>
+                <div id="dropzone" class="dropzone">
+                    <div class="dropzone-content">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        <p class="dropzone-text">Přetáhněte GPX soubory nebo klikněte pro výběr</p>
+                        <p class="dropzone-hint">Podporuje více souborů najednou</p>
+                    </div>
+                    <div id="dropzone-loading" class="dropzone-loading" style="display: none;">
+                        <div class="spinner"></div>
+                        <p>Načítám trasy...</p>
+                    </div>
+                    <input type="file" id="gpx-input" accept=".gpx" multiple style="display: none;">
+                </div>
+                <button class="secondary" id="btn-close-import" style="width: 100%;">Zavřít</button>
             </div>
 
             <div class="panel-section">
                 <h3>Vytvoření trasy</h3>
-                <button class="primary" id="btn-create-manual">Nová trasa (ručně)</button>
-                <button class="primary" id="btn-create-routing">Nová trasa (routing)</button>
+                <div class="button-compact">
+                    <button class="primary" id="btn-create-routing">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12 6 12 12 16 14"></polyline>
+                        </svg>
+                        Plánovaná
+                    </button>
+                    <button class="primary" id="btn-create-manual">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 20h9"></path>
+                            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                        </svg>
+                        Ruční
+                    </button>
+                </div>
             </div>
 
             <div class="panel-section" id="attributes-panel" style="display: none;">
@@ -295,13 +492,6 @@
                     <button class="success btn-main" id="btn-save-route" disabled>Uložit trasu</button>
                     <button class="muted btn-secondary" id="btn-cancel-route" disabled>Storno</button>
                 </div>
-            </div>
-
-            <div class="panel-section">
-                <h3>Import / Export GPX</h3>
-                <input type="file" id="gpx-input" accept=".gpx">
-                <button class="secondary" id="btn-load-gpx">Načíst GPX</button>
-                <button class="secondary" id="btn-export-gpx">Uložit GPX</button>
             </div>
         </div>
     </div>
@@ -430,8 +620,8 @@
             // Disable/enable buttons based on mode
             document.getElementById('btn-create-manual').disabled = isEditing;
             document.getElementById('btn-create-routing').disabled = isEditing;
-            document.getElementById('btn-load-gpx').disabled = isEditing;
             document.getElementById('btn-export-gpx').disabled = isEditing;
+            document.getElementById('btn-import-gpx').disabled = isEditing;
             
             if (activeRouteId) {
                 const route = routes.find(r => r.id === activeRouteId);
@@ -947,10 +1137,64 @@
             gpx += '</gpx>';
 
             const blob = new Blob([gpx], { type: 'application/gpx+xml' });
+            
+            // Try to use File System Access API for modern browsers
+            if ('showSaveFilePicker' in window) {
+                saveFileModern(blob);
+            } else {
+                // Fallback to traditional download
+                saveFileFallback(blob);
+            }
+        }
+
+        async function saveFileModern(blob) {
+            try {
+                // Generate filename with date and time
+                const now = new Date();
+                const year = now.getFullYear().toString().slice(-2);
+                const month = String(now.getMonth() + 1).padStart(2, '0');
+                const day = String(now.getDate()).padStart(2, '0');
+                const hours = String(now.getHours()).padStart(2, '0');
+                const minutes = String(now.getMinutes()).padStart(2, '0');
+                const filename = `routes_${year}${month}${day}_${hours}${minutes}.gpx`;
+                
+                const options = {
+                    types: [{
+                        description: 'GPX soubory',
+                        accept: { 'application/gpx+xml': ['.gpx'] }
+                    }],
+                    suggestedName: filename
+                };
+                
+                const handle = await window.showSaveFilePicker(options);
+                const writable = await handle.createWritable();
+                await writable.write(blob);
+                await writable.close();
+                
+                console.log('Soubor uložen');
+            } catch (err) {
+                if (err.name !== 'AbortError') {
+                    console.error('Chyba při ukládání:', err);
+                    // Fallback to download
+                    saveFileFallback(blob);
+                }
+            }
+        }
+
+        function saveFileFallback(blob) {
+            // Generate filename with date and time
+            const now = new Date();
+            const year = now.getFullYear().toString().slice(-2);
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const filename = `routes_${year}${month}${day}_${hours}${minutes}.gpx`;
+            
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = 'routes.gpx';
+            a.download = filename;
             a.click();
             URL.revokeObjectURL(url);
         }
@@ -971,8 +1215,7 @@
                 const tracks = xmlDoc.getElementsByTagName('trk');
 
                 if (tracks.length === 0) {
-                    alert('V GPX souboru nebyly nalezeny žádné trasy');
-                    return;
+                    return; // Silently skip files without tracks
                 }
 
                 Array.from(tracks).forEach(trk => {
@@ -1047,6 +1290,129 @@
                 fitBoundsToRoutes();
             };
             reader.readAsText(file);
+        }
+
+        function importMultipleGPX(files) {
+            const dropzoneContent = document.querySelector('.dropzone-content');
+            const dropzoneLoading = document.getElementById('dropzone-loading');
+            
+            // Show loading
+            dropzoneContent.style.display = 'none';
+            dropzoneLoading.style.display = 'flex';
+            
+            let processed = 0;
+            const totalFiles = files.length;
+            
+            Array.from(files).forEach((file, index) => {
+                if (file.name.toLowerCase().endsWith('.gpx')) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const parser = new DOMParser();
+                        const xmlDoc = parser.parseFromString(e.target.result, 'text/xml');
+                        const tracks = xmlDoc.getElementsByTagName('trk');
+
+                        Array.from(tracks).forEach(trk => {
+                            const nameEl = trk.getElementsByTagName('name')[0];
+                            const name = nameEl ? nameEl.textContent : file.name.replace('.gpx', '');
+                            
+                            let color = 'red';
+                            let routeMode = 'manual';
+                            let waypoints = [];
+                            
+                            const extensions = trk.getElementsByTagName('extensions')[0];
+                            if (extensions) {
+                                const displayColorEl = extensions.getElementsByTagName('gpxx:DisplayColor')[0] || 
+                                                       extensions.getElementsByTagName('DisplayColor')[0];
+                                if (displayColorEl) {
+                                    const colorValue = displayColorEl.textContent.toLowerCase();
+                                    if (colorValue === 'red' || colorValue === 'blue' || colorValue === 'green') {
+                                        color = colorValue;
+                                    }
+                                }
+                                
+                                const routeModeEl = extensions.getElementsByTagName('gpxx:RouteMode')[0] || 
+                                                   extensions.getElementsByTagName('RouteMode')[0];
+                                if (routeModeEl) {
+                                    const modeValue = routeModeEl.textContent.toLowerCase();
+                                    if (modeValue === 'routing' || modeValue === 'manual') {
+                                        routeMode = modeValue;
+                                    }
+                                }
+                                
+                                const waypointsEl = extensions.getElementsByTagName('gpxx:Waypoints')[0] || 
+                                                   extensions.getElementsByTagName('Waypoints')[0];
+                                if (waypointsEl) {
+                                    const waypointEls = waypointsEl.getElementsByTagName('gpxx:Waypoint');
+                                    if (waypointEls.length === 0) {
+                                        const waypointEls2 = waypointsEl.getElementsByTagName('Waypoint');
+                                        Array.from(waypointEls2).forEach(wpEl => {
+                                            waypoints.push({
+                                                lat: parseFloat(wpEl.getAttribute('lat')),
+                                                lon: parseFloat(wpEl.getAttribute('lon'))
+                                            });
+                                        });
+                                    } else {
+                                        Array.from(waypointEls).forEach(wpEl => {
+                                            waypoints.push({
+                                                lat: parseFloat(wpEl.getAttribute('lat')),
+                                                lon: parseFloat(wpEl.getAttribute('lon'))
+                                            });
+                                        });
+                                    }
+                                }
+                            }
+                            
+                            const trkpts = trk.getElementsByTagName('trkpt');
+                            const coordinates = Array.from(trkpts).map(pt => ({
+                                lat: parseFloat(pt.getAttribute('lat')),
+                                lon: parseFloat(pt.getAttribute('lon'))
+                            }));
+
+                            if (coordinates.length > 0) {
+                                createRoute(coordinates, name, color, routeMode, waypoints);
+                            }
+                        });
+
+                        processed++;
+                        if (processed === totalFiles) {
+                            // All files processed
+                            renderAllRoutes();
+                            updateUI();
+                            fitBoundsToRoutes();
+                            
+                            // Hide loading and close import panel
+                            setTimeout(() => {
+                                dropzoneLoading.style.display = 'none';
+                                dropzoneContent.style.display = 'block';
+                                // Close import panel after successful import
+                                setTimeout(() => {
+                                    document.getElementById('import-panel').style.display = 'none';
+                                }, 500);
+                            }, 300);
+                        }
+                    };
+                    reader.onerror = () => {
+                        processed++;
+                        if (processed === totalFiles) {
+                            dropzoneLoading.style.display = 'none';
+                            dropzoneContent.style.display = 'block';
+                            setTimeout(() => {
+                                document.getElementById('import-panel').style.display = 'none';
+                            }, 500);
+                        }
+                    };
+                    reader.readAsText(file);
+                } else {
+                    processed++;
+                    if (processed === totalFiles) {
+                        dropzoneLoading.style.display = 'none';
+                        dropzoneContent.style.display = 'block';
+                        setTimeout(() => {
+                            document.getElementById('import-panel').style.display = 'none';
+                        }, 500);
+                    }
+                }
+            });
         }
 
         function fitBoundsToRoutes() {
@@ -1182,12 +1548,68 @@
             cancelRouteEditing();
         });
 
-        document.getElementById('btn-load-gpx').addEventListener('click', () => {
-            const input = document.getElementById('gpx-input');
-            if (input.files.length > 0) {
-                importGPX(input.files[0]);
-            } else {
-                alert('Vyberte GPX soubor');
+        // ======================
+        // DRAG & DROP / FILE UPLOAD HANDLERS
+        // ======================
+        const dropzone = document.getElementById('dropzone');
+        const gpxInput = document.getElementById('gpx-input');
+        const importPanel = document.getElementById('import-panel');
+
+        // Show import panel
+        document.getElementById('btn-import-gpx').addEventListener('click', () => {
+            if (mode === 'none') {
+                importPanel.style.display = 'block';
+                dropzone.classList.add('visible');
+            }
+        });
+
+        // Hide import panel
+        document.getElementById('btn-close-import').addEventListener('click', () => {
+            importPanel.style.display = 'none';
+            dropzone.classList.remove('visible');
+        });
+
+        // Click to select files
+        dropzone.addEventListener('click', () => {
+            if (mode === 'none') {
+                gpxInput.click();
+            }
+        });
+
+        // Handle file selection
+        gpxInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                importMultipleGPX(e.target.files);
+                // Reset input
+                e.target.value = '';
+            }
+        });
+
+        // Drag & Drop handlers
+        dropzone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (mode === 'none') {
+                dropzone.classList.add('dragover');
+            }
+        });
+
+        dropzone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropzone.classList.remove('dragover');
+        });
+
+        dropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropzone.classList.remove('dragover');
+            
+            if (mode === 'none') {
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    importMultipleGPX(files);
+                }
             }
         });
 
