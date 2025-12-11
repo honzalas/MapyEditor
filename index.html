@@ -397,6 +397,38 @@
             border-top-color: rgba(0, 0, 0, 0.85) !important;
         }
 
+        .context-menu {
+            position: absolute;
+            background: white;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            padding: 4px 0;
+            z-index: 10000;
+            display: none;
+        }
+
+        .context-menu-item {
+            padding: 8px 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: #333;
+            transition: background-color 0.2s;
+        }
+
+        .context-menu-item:hover {
+            background-color: #f0f0f0;
+        }
+
+        .context-menu-item svg {
+            width: 16px;
+            height: 16px;
+            color: #D32F2F;
+        }
+
         @media (max-width: 768px) {
             #app {
                 flex-direction: column;
@@ -419,6 +451,15 @@
             <div id="status-bar">Nevybraná trasa</div>
             <div id="map"></div>
             <div id="loading-indicator">Plánuji trasu...</div>
+            <div id="context-menu" class="context-menu">
+                <div class="context-menu-item" id="context-menu-delete">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    </svg>
+                    Smazat bod
+                </div>
+            </div>
         </div>
         <div id="right-panel">
             <div class="panel-section">
@@ -537,6 +578,7 @@
         let tempRouteData = null; // Temporary data for route being created
         let routeBackup = null; // Backup of route before editing (for cancel)
         let ctrlPressed = false; // Track CTRL key state
+        let contextMenuData = null; // Store data for context menu actions
 
         const colorMap = {
             red: '#D32F2F',
@@ -712,6 +754,100 @@
         }
 
         // ======================
+        // CONTEXT MENU
+        // ======================
+        const contextMenu = document.getElementById('context-menu');
+        
+        function showContextMenu(x, y, data) {
+            contextMenuData = data;
+            contextMenu.style.left = x + 'px';
+            contextMenu.style.top = y + 'px';
+            contextMenu.style.display = 'block';
+        }
+        
+        function hideContextMenu() {
+            contextMenu.style.display = 'none';
+            contextMenuData = null;
+        }
+        
+        // Hide context menu on any click outside
+        document.addEventListener('click', () => {
+            hideContextMenu();
+        });
+        
+        // Context menu delete action
+        document.getElementById('context-menu-delete').addEventListener('click', async (e) => {
+            e.stopPropagation();
+            if (contextMenuData) {
+                await deletePoint(contextMenuData);
+            }
+            hideContextMenu();
+        });
+        
+        // Function to delete a point and reorganize route
+        async function deletePoint(data) {
+            const route = routes.find(r => r.id === activeRouteId);
+            if (!route) return;
+            
+            if (route.routeMode === 'routing') {
+                // For routing mode
+                const waypoints = route.waypoints || [];
+                const totalPoints = 2 + waypoints.length; // start + waypoints + end
+                
+                // Prevent deleting if only 2 points remain
+                if (totalPoints <= 2) {
+                    alert('Trasa musí mít minimálně start a cíl.');
+                    return;
+                }
+                
+                // Determine what type of point we're deleting
+                if (data.type === 'start') {
+                    // Start becomes first waypoint (or end if no waypoints)
+                    if (waypoints.length > 0) {
+                        const newStart = waypoints[0];
+                        route.waypoints = waypoints.slice(1);
+                        tempRouteData.start = { ...newStart };
+                        tempRouteData.waypoints = route.waypoints;
+                    } else {
+                        // No waypoints, end becomes start - delete route
+                        alert('Nelze smazat start, trasa by zůstala pouze s jedním bodem.');
+                        return;
+                    }
+                } else if (data.type === 'end') {
+                    // End becomes last waypoint
+                    if (waypoints.length > 0) {
+                        const newEnd = waypoints[waypoints.length - 1];
+                        route.waypoints = waypoints.slice(0, -1);
+                        tempRouteData.end = { ...newEnd };
+                        tempRouteData.waypoints = route.waypoints;
+                    } else {
+                        // No waypoints, start becomes end - delete route
+                        alert('Nelze smazat cíl, trasa by zůstala pouze s jedním bodem.');
+                        return;
+                    }
+                } else if (data.type === 'waypoint') {
+                    // Delete waypoint at index
+                    route.waypoints.splice(data.index, 1);
+                    tempRouteData.waypoints = route.waypoints;
+                }
+                
+                // Recalculate route
+                await recalculateRoutingRoute();
+                
+            } else {
+                // For manual mode
+                if (route.coordinates.length <= 2) {
+                    alert('Trasa musí mít minimálně 2 body.');
+                    return;
+                }
+                
+                // Simply remove the coordinate at index
+                route.coordinates.splice(data.index, 1);
+                renderRoute(route, true);
+            }
+        }
+
+        // ======================
         // ROUTE RENDERING
         // ======================
         function renderRoute(route, isActive = false) {
@@ -804,6 +940,13 @@
                         await recalculateRoutingRoute();
                     });
 
+                    // Right-click for context menu
+                    startMarker.on('contextmenu', (e) => {
+                        L.DomEvent.stopPropagation(e);
+                        const pixel = map.latLngToContainerPoint(e.latlng);
+                        showContextMenu(pixel.x, pixel.y, { type: 'start' });
+                    });
+
                     // End marker (red)
                     const endMarker = L.marker([lastCoord.lat, lastCoord.lon], {
                         draggable: true,
@@ -829,6 +972,13 @@
                             tempRouteData.endMarker = endMarker;
                         }
                         await recalculateRoutingRoute();
+                    });
+
+                    // Right-click for context menu
+                    endMarker.on('contextmenu', (e) => {
+                        L.DomEvent.stopPropagation(e);
+                        const pixel = map.latLngToContainerPoint(e.latlng);
+                        showContextMenu(pixel.x, pixel.y, { type: 'end' });
                     });
 
                     markers.push(startMarker, endMarker);
@@ -862,6 +1012,13 @@
                             }
                             tempRouteData.waypoints[index] = { lat: latlng.lat, lon: latlng.lng };
                             await recalculateRoutingRoute();
+                        });
+
+                        // Right-click for context menu
+                        wpMarker.on('contextmenu', (e) => {
+                            L.DomEvent.stopPropagation(e);
+                            const pixel = map.latLngToContainerPoint(e.latlng);
+                            showContextMenu(pixel.x, pixel.y, { type: 'waypoint', index: index });
                         });
 
                         markers.push(wpMarker);
@@ -974,6 +1131,13 @@
                             const latlng = marker.getLatLng();
                             route.coordinates[index] = { lat: latlng.lat, lon: latlng.lng };
                             renderRoute(route, true);
+                        });
+
+                        // Right-click for context menu
+                        marker.on('contextmenu', (e) => {
+                            L.DomEvent.stopPropagation(e);
+                            const pixel = map.latLngToContainerPoint(e.latlng);
+                            showContextMenu(pixel.x, pixel.y, { type: 'manual', index: index });
                         });
 
                         markers.push(marker);
@@ -1504,6 +1668,13 @@
         // ======================
         // MAP INTERACTIONS
         // ======================
+        
+        // Prevent default context menu on map
+        map.on('contextmenu', (e) => {
+            L.DomEvent.stopPropagation(e);
+            L.DomEvent.preventDefault(e);
+        });
+        
         map.on('click', async (e) => {
             const route = routes.find(r => r.id === activeRouteId);
             if (!route) return;
