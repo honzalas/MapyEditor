@@ -69,8 +69,10 @@
             width: 400px;
             background: #2d2d2d;
             padding: 20px;
-            overflow-y: auto;
+            overflow-y: hidden;
             border-left: 1px solid #1a1a1a;
+            display: flex;
+            flex-direction: column;
         }
 
         .panel-section {
@@ -79,6 +81,7 @@
             margin-bottom: 16px;
             border-radius: 8px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            flex-shrink: 0;
         }
 
         .panel-section h3 {
@@ -456,6 +459,117 @@
             margin-bottom: 4px;
         }
 
+        /* Route list styles */
+        #routes-list-container {
+            flex: 1;
+            overflow-y: auto;
+            background: #3a3a3a;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            margin-bottom: 16px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #routes-list-container.hidden {
+            display: none;
+        }
+
+        .routes-search {
+            padding: 16px;
+            border-bottom: 1px solid #555;
+            flex-shrink: 0;
+        }
+
+        .routes-search h3 {
+            margin-bottom: 12px;
+            font-size: 16px;
+            color: #e0e0e0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .routes-count {
+            font-size: 14px;
+            color: #888;
+            font-weight: normal;
+        }
+
+        .search-box {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .search-box input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #555;
+            border-radius: 4px;
+            font-size: 14px;
+            background: #2d2d2d;
+            color: #e0e0e0;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: #2196F3;
+        }
+
+        .routes-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+        }
+
+        .route-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: #2d2d2d;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .route-item:hover {
+            background: #353535;
+            transform: translateX(4px);
+        }
+
+        .route-color-indicator {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            flex-shrink: 0;
+        }
+
+        .route-item-text {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .route-item-name {
+            font-size: 14px;
+            font-weight: 500;
+            color: #e0e0e0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .routes-list-empty {
+            padding: 40px 20px;
+            text-align: center;
+            color: #888;
+            font-size: 14px;
+        }
+
         @media (max-width: 768px) {
             #app {
                 flex-direction: column;
@@ -506,14 +620,6 @@
                         <h3>MapyEditor</h3>
                     </div>
                     <a href="About.html" class="about-link" target="_blank">ℹ️ O programu</a>
-                </div>
-                <div class="info-line">
-                    <span class="info-label">Počet tras:</span>
-                    <span class="info-value" id="route-count">0</span>
-                </div>
-                <div class="info-line">
-                    <span class="info-label">Aktivní trasa:</span>
-                    <span class="info-value" id="active-route">-</span>
                 </div>
                 <div class="button-compact" style="margin-top: 12px;">
                     <button class="secondary" id="btn-import-gpx">
@@ -576,6 +682,19 @@
                 </div>
             </div>
 
+            <!-- Routes List Container -->
+            <div id="routes-list-container">
+                <div class="routes-search">
+                    <h3>Seznam tras <span class="routes-count" id="routes-count">0/0</span></h3>
+                    <div class="search-box">
+                        <input type="text" id="route-search-input" placeholder="Hledat trasu...">
+                    </div>
+                </div>
+                <div class="routes-list" id="routes-list">
+                    <div class="routes-list-empty">Zatím nejsou vytvořeny žádné trasy</div>
+                </div>
+            </div>
+
             <div class="panel-section" id="attributes-panel" style="display: none;">
                 <h3>Atributy trasy</h3>
                 <div class="form-group">
@@ -620,6 +739,7 @@
         let routeBackup = null; // Backup of route before editing (for cancel)
         let ctrlPressed = false; // Track CTRL key state
         let contextMenuData = null; // Store data for context menu actions
+        let routeSearchQuery = ''; // Store search query for routes list
 
         const colorMap = {
             red: '#D32F2F',
@@ -711,8 +831,6 @@
         // ======================
         const statusBar = document.getElementById('status-bar');
         const loadingIndicator = document.getElementById('loading-indicator');
-        const routeCountEl = document.getElementById('route-count');
-        const activeRouteEl = document.getElementById('active-route');
         const attributesPanel = document.getElementById('attributes-panel');
         const routeNameInput = document.getElementById('route-name');
         const routeColorSelect = document.getElementById('route-color');
@@ -721,8 +839,6 @@
         // HELPER FUNCTIONS
         // ======================
         function updateUI() {
-            routeCountEl.textContent = routes.length;
-            
             const isEditing = mode !== 'none';
             const route = activeRouteId ? routes.find(r => r.id === activeRouteId) : null;
             const needsCrosshair = isEditing && route && (
@@ -744,9 +860,11 @@
             document.getElementById('btn-export-gpx').disabled = isEditing;
             document.getElementById('btn-import-gpx').disabled = isEditing;
             
+            // Show/hide routes list and attributes panel
+            const routesListContainer = document.getElementById('routes-list-container');
+            
             if (activeRouteId) {
                 const route = routes.find(r => r.id === activeRouteId);
-                activeRouteEl.textContent = route ? `${route.name || 'Bez názvu'} (ID: ${route.id})` : '-';
                 
                 // Update status bar
                 if (mode === 'editing-manual') {
@@ -765,7 +883,8 @@
                     }
                 }
                 
-                // Show attributes panel
+                // Hide routes list, show attributes panel
+                routesListContainer.classList.add('hidden');
                 attributesPanel.style.display = 'block';
                 routeNameInput.value = route ? route.name : '';
                 routeColorSelect.value = route ? route.color : 'red';
@@ -774,11 +893,98 @@
                 document.getElementById('btn-save-route').disabled = false;
                 document.getElementById('btn-cancel-route').disabled = false;
             } else {
-                activeRouteEl.textContent = '-';
                 statusBar.textContent = 'Nevybraná trasa';
+                
+                // Show routes list, hide attributes panel
+                routesListContainer.classList.remove('hidden');
                 attributesPanel.style.display = 'none';
                 document.getElementById('btn-save-route').disabled = true;
                 document.getElementById('btn-cancel-route').disabled = true;
+                
+                // Update routes list
+                updateRoutesList();
+            }
+        }
+
+        function updateRoutesList() {
+            const routesList = document.getElementById('routes-list');
+            const routesCountEl = document.getElementById('routes-count');
+            
+            // Filter routes based on search query
+            const filteredRoutes = routes.filter(route => {
+                if (!routeSearchQuery) return true;
+                const name = route.name || '';
+                return name.toLowerCase().includes(routeSearchQuery.toLowerCase());
+            });
+            
+            // Update count display
+            routesCountEl.textContent = `${filteredRoutes.length}/${routes.length}`;
+            
+            if (filteredRoutes.length === 0) {
+                if (routes.length === 0) {
+                    routesList.innerHTML = '<div class="routes-list-empty">Zatím nejsou vytvořeny žádné trasy</div>';
+                } else {
+                    routesList.innerHTML = '<div class="routes-list-empty">Žádné trasy odpovídající hledání</div>';
+                }
+                return;
+            }
+            
+            routesList.innerHTML = '';
+            filteredRoutes.forEach(route => {
+                const routeItem = document.createElement('div');
+                routeItem.className = 'route-item';
+                routeItem.dataset.routeId = route.id;
+                
+                const colorIndicator = document.createElement('div');
+                colorIndicator.className = 'route-color-indicator';
+                colorIndicator.style.backgroundColor = getColorHex(route.color);
+                
+                const textDiv = document.createElement('div');
+                textDiv.className = 'route-item-text';
+                
+                const nameDiv = document.createElement('div');
+                nameDiv.className = 'route-item-name';
+                nameDiv.textContent = route.name || 'Bez názvu';
+                
+                textDiv.appendChild(nameDiv);
+                
+                routeItem.appendChild(colorIndicator);
+                routeItem.appendChild(textDiv);
+                
+                // Click handler - activate route with bestfit
+                routeItem.addEventListener('click', () => {
+                    activateRouteWithBestFit(route.id);
+                });
+                
+                // Hover handler - highlight route in map
+                routeItem.addEventListener('mouseenter', () => {
+                    highlightRouteInMap(route.id, true);
+                });
+                
+                routeItem.addEventListener('mouseleave', () => {
+                    highlightRouteInMap(route.id, false);
+                });
+                
+                routesList.appendChild(routeItem);
+            });
+        }
+
+        function highlightRouteInMap(routeId, highlight) {
+            if (mode !== 'none') return; // Don't highlight if editing
+            
+            const layer = routeLayers[routeId];
+            if (layer && layer.line) {
+                if (highlight) {
+                    layer.line.setStyle({
+                        weight: 8,
+                        opacity: 1
+                    });
+                } else {
+                    layer.line.setStyle({
+                        weight: 5,
+                        opacity: 0.95
+                    });
+                }
             }
         }
 
@@ -1034,6 +1240,9 @@
                     className: 'route-tooltip'
                 });
                 
+                // Store reference to update tooltip later
+                route._tooltip = line.getTooltip();
+                
                 // Highlight on hover
                 line.on('mouseover', function() {
                     if (mode === 'none') {
@@ -1057,7 +1266,7 @@
             // Click on line to activate (only if not currently editing)
             line.on('click', () => {
                 if (mode === 'none') {
-                    activateRoute(route.id);
+                    activateRouteWithBestFit(route.id);
                 }
             });
 
@@ -1370,6 +1579,18 @@
             };
             routes.push(route);
             return route;
+        }
+
+        function activateRouteWithBestFit(routeId) {
+            activateRoute(routeId);
+            
+            // Perform best fit on the route
+            const route = routes.find(r => r.id === routeId);
+            if (route && route.coordinates.length > 0) {
+                const latLngs = route.coordinates.map(c => [c.lat, c.lon]);
+                const bounds = L.latLngBounds(latLngs);
+                map.fitBounds(bounds, { padding: [50, 50] });
+            }
         }
 
         function activateRoute(routeId) {
@@ -1738,6 +1959,7 @@
 
                 renderAllRoutes();
                 updateUI();
+                updateRoutesList();
                 
                 // Fit bounds to all routes
                 fitBoundsToRoutes();
@@ -1831,6 +2053,7 @@
                             // All files processed
                             renderAllRoutes();
                             updateUI();
+                            updateRoutesList();
                             fitBoundsToRoutes();
                             
                             // Hide loading and close import panel
@@ -2001,7 +2224,7 @@
                 deactivateRoute();
             }
             const route = createRoute([], 'Nová trasa', 'red', 'manual', []);
-            activateRoute(route.id);
+            activateRouteWithBestFit(route.id);
         });
 
         document.getElementById('btn-create-routing').addEventListener('click', () => {
@@ -2009,7 +2232,7 @@
                 deactivateRoute();
             }
             const route = createRoute([], 'Nová trasa', 'red', 'routing', []);
-            activateRoute(route.id);
+            activateRouteWithBestFit(route.id);
         });
 
         document.getElementById('btn-save-route').addEventListener('click', () => {
@@ -2103,6 +2326,22 @@
             if (route) {
                 route.name = routeNameInput.value;
                 updateUI();
+                // Update status bar immediately to show new name
+                if (mode === 'editing-manual') {
+                    if (route.coordinates.length < 2) {
+                        statusBar.textContent = `Vytváření ruční trasy: ${route.name || 'Bez názvu'} - klikejte do mapy`;
+                    } else {
+                        statusBar.textContent = `Úprava ruční trasy: ${route.name || 'Bez názvu'}`;
+                    }
+                } else if (mode === 'editing-routing') {
+                    if (route.coordinates.length === 0) {
+                        statusBar.textContent = `Vytváření plánované trasy: ${route.name || 'Bez názvu'} - nastavte start`;
+                    } else if (route.coordinates.length === 1) {
+                        statusBar.textContent = `Vytváření plánované trasy: ${route.name || 'Bez názvu'} - nastavte cíl`;
+                    } else {
+                        statusBar.textContent = `Úprava plánované trasy: ${route.name || 'Bez názvu'}`;
+                    }
+                }
             }
         });
 
@@ -2112,6 +2351,14 @@
                 route.color = routeColorSelect.value;
                 renderRoute(route, true);
             }
+        });
+
+        // ======================
+        // ROUTE SEARCH HANDLERS
+        // ======================
+        document.getElementById('route-search-input').addEventListener('input', (e) => {
+            routeSearchQuery = e.target.value;
+            updateRoutesList();
         });
 
         // ======================
@@ -2137,6 +2384,17 @@
         window.addEventListener('blur', () => {
             ctrlPressed = false;
             updateUI();
+        });
+
+        // Warn user before leaving the page
+        window.addEventListener('beforeunload', (e) => {
+            // Only show warning if there are routes
+            if (routes.length > 0) {
+                const message = 'Skutečně chcete MapyEditor opustit? Máte vše uložené do souboru na disku?';
+                e.preventDefault();
+                e.returnValue = message; // Standard way to trigger browser warning
+                return message; // Some older browsers need this
+            }
         });
 
         updateUI();
