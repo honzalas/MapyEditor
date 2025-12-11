@@ -342,6 +342,15 @@
             cursor: copy !important;
         }
 
+        /* Remove black bounding box on click */
+        .leaflet-interactive:focus {
+            outline: none !important;
+        }
+        
+        .leaflet-interactive:focus-visible {
+            outline: none !important;
+        }
+
         .dropzone-loading {
             display: flex;
             flex-direction: column;
@@ -1023,6 +1032,25 @@
                     permanent: false,
                     direction: 'top',
                     className: 'route-tooltip'
+                });
+                
+                // Highlight on hover
+                line.on('mouseover', function() {
+                    if (mode === 'none') {
+                        this.setStyle({
+                            weight: 8,
+                            opacity: 1
+                        });
+                    }
+                });
+                
+                line.on('mouseout', function() {
+                    if (mode === 'none') {
+                        this.setStyle({
+                            weight: 5,
+                            opacity: 0.95
+                        });
+                    }
                 });
             }
 
