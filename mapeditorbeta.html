@@ -2478,15 +2478,21 @@
                             }
                             continue; // Skip the recalculate section below
                         } else if (oldRouteMode) {
-                            // Old format compatibility
+                            // Old format compatibility - geometry is already in trkpt, no API calls needed!
                             const allTrkpts = [];
                             for (const trkseg of Array.from(trksegs)) {
                                 const trkpts = trkseg.getElementsByTagName('trkpt');
                                 allTrkpts.push(...Array.from(trkpts));
                             }
                             
+                            // Read geometry from trkpt
+                            const geometry = allTrkpts.map(pt => ({
+                                lat: parseFloat(pt.getAttribute('lat')),
+                                lon: parseFloat(pt.getAttribute('lon'))
+                            }));
+                            
                             if (oldRouteMode === 'manual') {
-                                // All trkpt are manual waypoints
+                                // All trkpt are manual waypoints (waypoints = geometry)
                                 allTrkpts.forEach((pt, idx) => {
                                     waypoints.push({
                                         lat: parseFloat(pt.getAttribute('lat')),
@@ -2517,13 +2523,35 @@
                                     }
                                 }
                             }
+                            
+                            // Create route with pre-loaded geometry (no API calls!)
+                            if (waypoints.length > 0) {
+                                const waypointIndices = waypoints.map((_, i) => i);
+                                const route = {
+                                    id: nextRouteId++,
+                                    name,
+                                    color,
+                                    waypoints,
+                                    segments: [{
+                                        mode: oldRouteMode,
+                                        startIndex: 0,
+                                        endIndex: waypoints.length - 1,
+                                        waypointIndices: waypointIndices,
+                                        geometry: geometry
+                                    }]
+                                };
+                                routes.push(route);
+                            }
                         } else {
-                            // No format info - treat as manual
+                            // No format info - treat as manual, geometry = waypoints
+                            const geometry = [];
                             for (const trkseg of Array.from(trksegs)) {
                                 const trkpts = trkseg.getElementsByTagName('trkpt');
                                 Array.from(trkpts).forEach((pt, idx) => {
                                     const lat = parseFloat(pt.getAttribute('lat'));
                                     const lon = parseFloat(pt.getAttribute('lon'));
+                                    
+                                    geometry.push({ lat, lon });
                                     
                                     if (waypoints.length === 0) {
                                         waypoints.push({ lat, lon, mode: 'start' });
@@ -2532,18 +2560,25 @@
                                     }
                                 });
                             }
-                        }
-                        
-                        if (waypoints.length > 0) {
-                            const route = {
-                                id: nextRouteId++,
-                                name,
-                                color,
-                                waypoints,
-                                segments: []
-                            };
-                            await recalculateRouteGeometry(route);
-                            routes.push(route);
+                            
+                            // Create route with pre-loaded geometry (no API calls!)
+                            if (waypoints.length > 0) {
+                                const waypointIndices = waypoints.map((_, i) => i);
+                                const route = {
+                                    id: nextRouteId++,
+                                    name,
+                                    color,
+                                    waypoints,
+                                    segments: [{
+                                        mode: 'manual',
+                                        startIndex: 0,
+                                        endIndex: waypoints.length - 1,
+                                        waypointIndices: waypointIndices,
+                                        geometry: geometry
+                                    }]
+                                };
+                                routes.push(route);
+                            }
                         }
                     }
                     

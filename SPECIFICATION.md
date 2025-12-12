@@ -232,4 +232,153 @@ Když změním WP uprostřed routing sekvence na manual:
 - Vytvoří dvě samostatné trasy
 - Obě zachovají stejné atributy (název s příponou, barvu)
 
+---
+
+## Dynamický hover marker pro midpointy
+
+Místo statických midpoint markerů na hranách se používá **dynamický hover marker**:
+
+- Kolečko s ikonou plus, které se pohybuje po trase při pohybu myši
+- Zobrazuje se pouze v editačním módu aktivní trasy
+- Má velikost 24px s bílým pozadím a šedým okrajem
+- **Skryje se** pokud je myš blízko existujícího waypointu (< 20px)
+- **Zobrazí se** pokud je myš blízko trasy (< 20px)
+
+### Technická implementace
+
+```javascript
+// Globální mousemove handler na mapě (ne na jednotlivých polyline!)
+map.on('mousemove', (e) => {
+    if (!isEditing || !activeRouteId) return;
+    updateHoverMarkerPosition(e.latlng);
+});
+```
+
+> **Důležité:** Handler je na mapě, ne na jednotlivých čárách. To zabraňuje blikání při přechodu mezi segmenty.
+
+### Zděděný mód
+
+Nový waypoint přidaný přes midpoint **zdědí mód** segmentu, do kterého byl vložen.
+
+---
+
+## Sdílené hraniční waypointy
+
+Segmenty **sdílejí hraniční waypointy**:
+
+```
+Routing segment: waypointIndices = [0, 1, 2]
+Manual segment:  waypointIndices = [2, 3, 4]  // index 2 je sdílený!
+```
+
+### Mód hraničního waypointu
+
+Mód hraničního waypointu je určen **předchozím segmentem**:
+
+| Přechod | Hraniční WP mód | Barva markeru |
+|---------|-----------------|---------------|
+| Routing → Manual | `routing` | Žlutý |
+| Manual → Routing | `manual` | Bílý |
+
+---
+
+## Optimalizovaný přepočet geometrie (smartRecalculate)
+
+Funkce `smartRecalculate` minimalizuje API volání tím, že přepočítává **pouze dotčené segmenty**:
+
+### Operace a jejich rozsah přepočtu
+
+| Operace | Přepočítává |
+|---------|-------------|
+| `move` (waypoint uprostřed manual segmentu) | Nic (lokální změna geometrie) |
+| `move` (waypoint na hranici) | Dotčené segmenty + následující |
+| `insert` (midpoint) | Segment kde je vloženo + případně následující |
+| `append` (nový bod na konec) | Pouze poslední segment |
+| `delete`, `modeChange`, `split` | Od změněného segmentu do konce |
+| `full` | Celá trasa |
+
+### Příklad optimalizace
+
+```
+Trasa: [Routing seg 1] → [Manual seg] → [Routing seg 2]
+
+Operace: Přidání midpointu do Manual segmentu
+Přepočet: Pouze Manual segment (bez API volání!)
+         Routing segmenty zůstávají nezměněny
+```
+
+---
+
+## Napojení segmentů (fixManualToRoutingConnections)
+
+Zajišťuje **souvislou geometrii** bez mezer:
+
+### Problém
+
+- Routing segment končí na silnici (snapnutí)
+- Waypoint může být v poli
+- Manual segment by začínal od waypointu → mezera
+
+### Řešení
+
+```javascript
+function fixManualToRoutingConnections(route) {
+    // Pro každý manual segment následující po routing:
+    // Poslední bod manual geometrie = první bod následující routing geometrie
+}
+```
+
+| Přechod | Úprava |
+|---------|--------|
+| Routing → Manual | Manual začíná od konce routing geometrie (ne od WP) |
+| Manual → Routing | Manual končí na začátku routing geometrie |
+
+---
+
+## GPX Import bez API volání
+
+**Geometrie je vždy uložena v GPX** (v `<trkpt>` elementech), takže import nevyžaduje API:
+
+| Formát | Zdroj geometrie | API volání |
+|--------|-----------------|------------|
+| Nový formát (SegmentMode) | `<trkpt>` | ❌ Ne |
+| Starý formát manual | `<trkpt>` | ❌ Ne |
+| Starý formát routing | `<trkpt>` | ❌ Ne |
+| Bez formátu | `<trkpt>` | ❌ Ne |
+
+### StartsFromPreviousGeometry flag
+
+Pro manual segmenty navazující na routing se ukládá flag:
+
+```xml
+<trkseg>
+  <extensions>
+    <gpxx:SegmentMode>manual</gpxx:SegmentMode>
+    <gpxx:StartsFromPreviousGeometry>true</gpxx:StartsFromPreviousGeometry>
+  </extensions>
+  <trkpt>...</trkpt>  <!-- previousGeometryEnd - NENÍ waypoint -->
+  <trkpt>...</trkpt>  <!-- první skutečný waypoint -->
+</trkseg>
+```
+
+Při importu se první `<trkpt>` přeskočí (je to jen spojovací bod, ne waypoint).
+
+---
+
+## Kurzory myši
+
+| Stav | Kurzor |
+|------|--------|
+| CTRL stisknuto | `crosshair` (žlutý popisek "routing") |
+| ALT stisknuto | `crosshair` (bílý popisek "manual") |
+| Myš nad trasou (možnost midpoint) | `pointer` |
+| Výchozí | `grab` |
+
+---
+
+## Loading indikátor
+
+- Zobrazuje se **pouze při routing operacích** (API volání)
+- Manual operace jsou okamžité, bez indikátoru
+- Při importu GPX se nezobrazuje (žádné API volání)
 
