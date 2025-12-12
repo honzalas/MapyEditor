@@ -1180,16 +1180,21 @@
         function calculateManualSegment(waypoints, segmentIndices, previousGeometryEnd) {
             const geometry = [];
             
-            for (let i = 0; i < segmentIndices.length; i++) {
-                const wpIndex = segmentIndices[i];
-                const wp = waypoints[wpIndex];
-                
-                if (i === 0 && previousGeometryEnd && wpIndex > 0) {
-                    // Start from previous geometry end
-                    geometry.push({ lat: previousGeometryEnd.lat, lon: previousGeometryEnd.lon });
+            // If we have previousGeometryEnd, start from there and skip the first waypoint
+            // (it's the shared boundary point with previous segment)
+            if (previousGeometryEnd && segmentIndices.length > 0 && segmentIndices[0] > 0) {
+                geometry.push({ lat: previousGeometryEnd.lat, lon: previousGeometryEnd.lon });
+                // Skip first waypoint (shared boundary), start from second
+                for (let i = 1; i < segmentIndices.length; i++) {
+                    const wp = waypoints[segmentIndices[i]];
+                    geometry.push({ lat: wp.lat, lon: wp.lon });
                 }
-                
-                geometry.push({ lat: wp.lat, lon: wp.lon });
+            } else {
+                // No previous geometry (first segment) - include all waypoints
+                for (let i = 0; i < segmentIndices.length; i++) {
+                    const wp = waypoints[segmentIndices[i]];
+                    geometry.push({ lat: wp.lat, lon: wp.lon });
+                }
             }
             
             return geometry;
@@ -1247,6 +1252,9 @@
             } finally {
                 if (hasRouting) hideLoading();
             }
+            
+            // Fix manual-to-routing connections in the affected range and neighbors
+            fixManualToRoutingConnections(route);
         }
         
         /**
@@ -1342,6 +1350,30 @@
             // (because each segment depends on previous geometry end)
             const startIdx = firstChangedIndex === -1 ? 0 : firstChangedIndex;
             await recalculateSegmentRange(route, startIdx, route.segments.length - 1);
+            
+            // Fix all manual-to-routing connections
+            fixManualToRoutingConnections(route);
+        }
+        
+        /**
+         * Fix connections between manual and routing segments
+         * Manual segments should end at the start of following routing segments (no gaps)
+         */
+        function fixManualToRoutingConnections(route) {
+            for (let i = 0; i < route.segments.length - 1; i++) {
+                const currentSeg = route.segments[i];
+                const nextSeg = route.segments[i + 1];
+                
+                // If current is manual and next is routing, fix the connection
+                if (currentSeg.mode === 'manual' && nextSeg.mode === 'routing' &&
+                    currentSeg.geometry.length > 0 && nextSeg.geometry.length > 0) {
+                    const routingStart = nextSeg.geometry[0];
+                    currentSeg.geometry[currentSeg.geometry.length - 1] = {
+                        lat: routingStart.lat,
+                        lon: routingStart.lon
+                    };
+                }
+            }
         }
         
         /**
@@ -1385,28 +1417,26 @@
             let inheritedMode;
             
             if (segment.mode === 'manual') {
-                // For manual segments, check if there's an extra point at the start
-                // (previousGeometryEnd that's not a waypoint)
-                const hasExtraStartPoint = geometry.length > segment.waypointIndices.length;
+                // For manual segments:
+                // - If startIndex > 0: geometry[0] = previousGeometryEnd, geometry[i] for i>=1 maps to waypointIndices[i]
+                // - If startIndex === 0: geometry[i] maps directly to waypointIndices[i]
+                const hasPreviousGeometry = segment.startIndex > 0;
                 
-                if (hasExtraStartPoint) {
+                if (hasPreviousGeometry) {
                     // geometry[0] = previousGeometryEnd (not a waypoint)
-                    // geometry[1] = waypoints[waypointIndices[0]]
-                    // geometry[i] (for i >= 1) = waypoints[waypointIndices[i-1]]
+                    // geometry[i] for i >= 1 corresponds to waypointIndices[i]
                     if (closestGeomIndex === 0) {
-                        // Clicking between previousGeometryEnd and first waypoint
-                        // Insert before the first waypoint of this segment
-                        insertIndex = segment.waypointIndices[0];
+                        // Clicking between previousGeometryEnd and first actual manual waypoint
+                        // Insert at position of first manual waypoint (waypointIndices[1])
+                        insertIndex = segment.waypointIndices[1];
                     } else {
-                        // Clicking between waypoints[waypointIndices[closestGeomIndex-1]] 
-                        // and waypoints[waypointIndices[closestGeomIndex]]
-                        insertIndex = segment.waypointIndices[closestGeomIndex - 1] + 1;
+                        // Clicking between geometry[closestGeomIndex] and geometry[closestGeomIndex+1]
+                        // which corresponds to waypointIndices[closestGeomIndex] and waypointIndices[closestGeomIndex+1]
+                        insertIndex = segment.waypointIndices[closestGeomIndex] + 1;
                     }
                 } else {
-                    // No extra point - geometry maps directly to waypoints
+                    // First segment - geometry maps directly to waypoints
                     // geometry[i] = waypoints[waypointIndices[i]]
-                    // Clicking between geometry[closestGeomIndex] and geometry[closestGeomIndex+1]
-                    // means clicking between waypointIndices[closestGeomIndex] and waypointIndices[closestGeomIndex+1]
                     insertIndex = segment.waypointIndices[closestGeomIndex] + 1;
                 }
                 inheritedMode = 'manual';
@@ -2115,7 +2145,8 @@
                 
                 // Export each segment as a trkseg
                 if (route.segments && route.segments.length > 0) {
-                    for (const segment of route.segments) {
+                    for (let segIdx = 0; segIdx < route.segments.length; segIdx++) {
+                        const segment = route.segments[segIdx];
                         gpx += '    <trkseg>\n';
                         gpx += '      <extensions>\n';
                         gpx += `        <gpxx:SegmentMode>${segment.mode}</gpxx:SegmentMode>\n`;
@@ -2136,6 +2167,9 @@
                                 }
                                 gpx += '        </gpxx:Waypoints>\n';
                             }
+                        } else if (segment.mode === 'manual' && segment.startIndex > 0) {
+                            // Manual segment after another segment - first geometry point is previousGeometryEnd
+                            gpx += `        <gpxx:StartsFromPreviousGeometry>true</gpxx:StartsFromPreviousGeometry>\n`;
                         }
                         
                         gpx += '      </extensions>\n';
@@ -2284,7 +2318,15 @@
                         }
                         
                         if (isNewFormat) {
-                            // New format: read segments
+                            // New format: read segments with geometry from trkpt (no API calls needed!)
+                            // 
+                            // IMPORTANT: At segment boundaries, waypoints are SHARED between segments.
+                            // The boundary waypoint's MODE is determined by the PREVIOUS segment.
+                            // Example: routing→manual transition: boundary wp has mode 'routing'
+                            //          manual→routing transition: boundary wp has mode 'manual'
+                            
+                            const importedSegments = [];
+                            
                             for (let segIdx = 0; segIdx < trksegs.length; segIdx++) {
                                 const trkseg = trksegs[segIdx];
                                 const segExt = trkseg.getElementsByTagName('extensions')[0];
@@ -2332,28 +2374,66 @@
                                     }
                                 }
                                 
+                                // Read geometry from trkpt
+                                const trkpts = trkseg.getElementsByTagName('trkpt');
+                                const geometry = Array.from(trkpts).map(pt => ({
+                                    lat: parseFloat(pt.getAttribute('lat')),
+                                    lon: parseFloat(pt.getAttribute('lon'))
+                                }));
+                                
+                                // Determine the previous segment info
+                                const prevSeg = importedSegments.length > 0 ? importedSegments[importedSegments.length - 1] : null;
+                                const boundaryWpIndex = prevSeg ? prevSeg.endIndex : -1;
+                                
+                                // Build waypoints for this segment
+                                // Key insight: boundary waypoint is SHARED and already exists from previous segment
+                                
                                 if (segMode === 'routing') {
-                                    // Routing segment: use metadata waypoints
-                                    if (segIdx === 0 && startPoint) {
-                                        waypoints.push({ ...startPoint, mode: 'start' });
+                                    // Routing segment: waypoints come from metadata (StartPoint, Waypoints, EndPoint)
+                                    
+                                    if (segIdx === 0) {
+                                        // First segment: add startPoint
+                                        if (startPoint) {
+                                            waypoints.push({ ...startPoint, mode: 'start' });
+                                        }
                                     }
+                                    // For subsequent segments: startPoint = boundary waypoint, already exists
+                                    // Don't add it again!
+                                    
+                                    // Add middle waypoints
                                     segWaypoints.forEach(wp => {
                                         waypoints.push({ ...wp, mode: 'routing' });
                                     });
+                                    
+                                    // Add endPoint
                                     if (endPoint) {
                                         waypoints.push({ ...endPoint, mode: 'routing' });
                                     }
                                 } else {
-                                    // Manual segment: trkpt are waypoints
-                                    const trkpts = trkseg.getElementsByTagName('trkpt');
+                                    // Manual segment: waypoints come from trkpt (geometry points)
+                                    // But geometry may start with previousGeometryEnd which is NOT a waypoint
+                                    
+                                    // Check if this manual segment starts from previous geometry end
+                                    const startsFromPrevGeom = prevSeg && prevSeg.mode === 'routing';
+                                    
                                     Array.from(trkpts).forEach((pt, ptIdx) => {
+                                        // Skip first trkpt if it's previousGeometryEnd (not a waypoint)
+                                        if (ptIdx === 0 && startsFromPrevGeom) {
+                                            return;
+                                        }
+                                        
                                         const lat = parseFloat(pt.getAttribute('lat'));
                                         const lon = parseFloat(pt.getAttribute('lon'));
                                         
-                                        // Skip if same as last waypoint (segment overlap)
-                                        const lastWp = waypoints[waypoints.length - 1];
-                                        if (lastWp && Math.abs(lastWp.lat - lat) < 0.000001 && Math.abs(lastWp.lon - lon) < 0.000001) {
-                                            return;
+                                        // For subsequent segments, first actual waypoint is the boundary
+                                        // Skip if it matches the boundary waypoint (already exists)
+                                        if (boundaryWpIndex >= 0) {
+                                            const boundaryWp = waypoints[boundaryWpIndex];
+                                            if (boundaryWp && 
+                                                Math.abs(boundaryWp.lat - lat) < 0.000001 && 
+                                                Math.abs(boundaryWp.lon - lon) < 0.000001) {
+                                                return; // Skip - this is the shared boundary waypoint
+                                            }
                                         }
                                         
                                         if (waypoints.length === 0) {
@@ -2363,7 +2443,40 @@
                                         }
                                     });
                                 }
+                                
+                                // Build waypointIndices for this segment
+                                // Segments SHARE boundary waypoints!
+                                const startIndex = (segIdx === 0) ? 0 : boundaryWpIndex;
+                                const endIndex = waypoints.length - 1;
+                                
+                                const waypointIndices = [];
+                                for (let wi = startIndex; wi <= endIndex; wi++) {
+                                    waypointIndices.push(wi);
+                                }
+                                
+                                importedSegments.push({
+                                    mode: segMode,
+                                    startIndex: startIndex,
+                                    endIndex: endIndex,
+                                    waypointIndices: waypointIndices,
+                                    geometry: geometry
+                                });
                             }
+                            
+                            // Create route with pre-loaded segments (no recalculation needed!)
+                            if (waypoints.length > 0) {
+                                const route = {
+                                    id: nextRouteId++,
+                                    name,
+                                    color,
+                                    waypoints,
+                                    segments: importedSegments
+                                };
+                                // Fix connections without API calls
+                                fixManualToRoutingConnections(route);
+                                routes.push(route);
+                            }
+                            continue; // Skip the recalculate section below
                         } else if (oldRouteMode) {
                             // Old format compatibility
                             const allTrkpts = [];
