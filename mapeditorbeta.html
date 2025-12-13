@@ -2291,10 +2291,8 @@
                                 }
                                 gpx += '        </gpxx:Waypoints>\n';
                             }
-                        } else if (segment.mode === 'manual' && segment.startIndex > 0) {
-                            // Manual segment after another segment - first geometry point is previousGeometryEnd
-                            gpx += `        <gpxx:StartsFromPreviousGeometry>true</gpxx:StartsFromPreviousGeometry>\n`;
                         }
+                        // Note: StartsFromPreviousGeometry is auto-detected on import based on previous segment type
                         
                         gpx += '      </extensions>\n';
                         

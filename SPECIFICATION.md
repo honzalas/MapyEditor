@@ -54,13 +54,16 @@ Klíčové pravidlo: **Geometrie musí být souvislá** (bez skoků).
 | Předchozí segment | Aktuální WP mód | Geometrie začíná od |
 |-------------------|-----------------|---------------------|
 | (žádný - start) | manual | souřadnice Startu |
-| (žádný - start) | routing | souřadnice Startu |
+| (žádný - start) | routing | souřadnice Startu (snapnutý na silnici) |
 | manual | manual | předchozí WP |
-| manual | routing | poslední manual WP (= konec předchozí geometrie) |
+| manual | routing | **první bod routing geometrie** (WP snapnutý na silnici) |
 | routing | manual | **poslední bod routované geometrie** (může být jinde než WP!) |
 | routing | routing | **poslední bod routované geometrie** |
 
-> **Důležité:** Routovaná geometrie může končit na silnici, ne přesně na waypointu (kvůli snapování na silniční síť). Proto následující segment vždy začíná od skutečného konce geometrie.
+> **Důležité:** Routing API snapuje waypointy na silniční síť. Proto:
+> - Routing geometrie může začínat/končit jinde než samotný waypoint
+> - Předchozí segment (manual i routing) se upraví tak, aby jeho geometrie končila na začátku následující geometrie
+> - Toto zajišťuje funkce `fixManualToRoutingConnections`
 
 ## Příklad trasy
 
@@ -348,22 +351,21 @@ function fixManualToRoutingConnections(route) {
 | Starý formát routing | `<trkpt>` | ❌ Ne |
 | Bez formátu | `<trkpt>` | ❌ Ne |
 
-### StartsFromPreviousGeometry flag
+### Automatická detekce previousGeometryEnd
 
-Pro manual segmenty navazující na routing se ukládá flag:
+Pro manual segmenty navazující na routing se **automaticky detekuje**, že první `<trkpt>` je spojovací bod (ne waypoint):
 
 ```xml
 <trkseg>
   <extensions>
     <gpxx:SegmentMode>manual</gpxx:SegmentMode>
-    <gpxx:StartsFromPreviousGeometry>true</gpxx:StartsFromPreviousGeometry>
   </extensions>
-  <trkpt>...</trkpt>  <!-- previousGeometryEnd - NENÍ waypoint -->
+  <trkpt>...</trkpt>  <!-- previousGeometryEnd - NENÍ waypoint (auto-detekce) -->
   <trkpt>...</trkpt>  <!-- první skutečný waypoint -->
 </trkseg>
 ```
 
-Při importu se první `<trkpt>` přeskočí (je to jen spojovací bod, ne waypoint).
+Při importu se první `<trkpt>` přeskočí pokud předchozí segment byl `routing`.
 
 ---
 
