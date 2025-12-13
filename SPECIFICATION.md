@@ -2,7 +2,7 @@
 
 ## Přehled
 
-MapyEditor Beta je vylepšená verze editoru tras, která umožňuje **kombinovat routované a ruční segmenty v rámci jedné trasy**. Na rozdíl od původní verze, kde byla trasa buď celá routovaná, nebo celá ruční, nová verze umožňuje libovolně mixovat oba přístupy.
+MapyEditor Beta je editor tras, která umožňuje **kombinovat routované a ruční segmenty v rámci jedné trasy**. Na rozdíl od původní verze, kde byla trasa buď celá routovaná, nebo celá ruční, nová verze umožňuje libovolně mixovat oba přístupy.
 
 ## Datový model
 

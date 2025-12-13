@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MapyEditor - Editor tras</title>
+    <title>MapyEditor Beta - Editor tras</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
@@ -35,19 +35,27 @@
             height: 100%;
         }
 
-        #map.create-mode {
+        #map.add-routing-mode {
+            cursor: copy !important;
+        }
+
+        #map.add-routing-mode * {
+            cursor: copy !important;
+        }
+
+        #map.add-manual-mode {
             cursor: crosshair !important;
         }
 
-        #map.create-mode * {
+        #map.add-manual-mode * {
             cursor: crosshair !important;
         }
 
-        #map.ctrl-mode {
+        #map.add-start-mode {
             cursor: crosshair !important;
         }
 
-        #map.ctrl-mode * {
+        #map.add-start-mode * {
             cursor: crosshair !important;
         }
 
@@ -107,7 +115,7 @@
         .panel-header-icon {
             width: 28px;
             height: 28px;
-            background: linear-gradient(135deg, #2196F3, #4CAF50);
+            background: linear-gradient(135deg, #FF9800, #4CAF50);
             border-radius: 6px;
             display: flex;
             align-items: center;
@@ -123,7 +131,7 @@
         }
 
         .about-link {
-            color: #2196F3;
+            color: #FF9800;
             text-decoration: none;
             font-size: 13px;
             transition: color 0.2s;
@@ -132,6 +140,15 @@
 
         .about-link:hover {
             color: #4CAF50;
+        }
+
+        .version-badge {
+            background: linear-gradient(135deg, #FF9800, #F57C00);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 600;
         }
 
         .info-line {
@@ -163,12 +180,12 @@
         }
 
         button.primary {
-            background: #2196F3;
+            background: #FF9800;
             color: white;
         }
 
         button.primary:hover {
-            background: #1976D2;
+            background: #F57C00;
         }
 
         button.success {
@@ -242,6 +259,26 @@
             margin-right: 4px;
         }
 
+        .toolbar {
+            display: flex;
+            gap: 6px;
+        }
+
+        .toolbar button {
+            flex: 1;
+            margin-bottom: 0;
+            font-size: 12px;
+            padding: 8px 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+
+        .toolbar button svg {
+            flex-shrink: 0;
+        }
+
         button:disabled {
             background: #e0e0e0 !important;
             color: #9e9e9e !important;
@@ -275,7 +312,7 @@
         .form-group input[type="text"]:focus,
         .form-group select:focus {
             outline: none;
-            border-color: #2196F3;
+            border-color: #FF9800;
         }
 
         input[type="file"] {
@@ -306,7 +343,7 @@
         }
 
         .dropzone:hover {
-            border-color: #2196F3;
+            border-color: #FF9800;
             background: #353535;
         }
 
@@ -345,7 +382,11 @@
             cursor: copy !important;
         }
 
-        /* Remove black bounding box on click */
+        .leaflet-marker-icon.hover-midpoint-marker {
+            cursor: copy !important;
+            pointer-events: auto !important;
+        }
+
         .leaflet-interactive:focus {
             outline: none !important;
         }
@@ -370,7 +411,7 @@
 
         .spinner {
             border: 3px solid #555;
-            border-top: 3px solid #2196F3;
+            border-top: 3px solid #FF9800;
             border-radius: 50%;
             width: 40px;
             height: 40px;
@@ -440,12 +481,103 @@
             height: 16px;
         }
         
-        #context-menu-delete svg {
+        .context-menu-item.delete svg {
             color: #D32F2F;
         }
         
-        #context-menu-split svg {
+        .context-menu-item.split svg {
             color: #2196F3;
+        }
+
+        .context-menu-item.mode-routing svg {
+            color: #FFC107;
+        }
+
+        .context-menu-item.mode-manual svg {
+            color: #9E9E9E;
+        }
+
+        .context-menu-separator {
+            height: 1px;
+            background: #e0e0e0;
+            margin: 4px 0;
+        }
+
+        /* Panel header with menu */
+        .panel-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .panel-header-row h3 {
+            margin: 0;
+        }
+
+        .panel-menu-container {
+            position: relative;
+        }
+
+        .panel-menu-btn {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            color: #666;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .panel-menu-btn:hover {
+            background: #e0e0e0;
+            color: #333;
+        }
+
+        .panel-menu {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: 100%;
+            background: white;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 100;
+            min-width: 150px;
+        }
+
+        .panel-menu.visible {
+            display: block;
+        }
+
+        .panel-menu-item {
+            padding: 10px 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            white-space: nowrap;
+        }
+
+        .panel-menu-item:hover {
+            background-color: #f0f0f0;
+        }
+
+        .panel-menu-item svg {
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
+        }
+
+        .panel-menu-item.delete {
+            color: #D32F2F;
+        }
+
+        .panel-menu-item.delete svg {
+            color: #D32F2F;
         }
 
         .help-hint {
@@ -459,7 +591,15 @@
             margin-bottom: 4px;
         }
 
-        /* Route list styles */
+        .help-hint-item .key {
+            background: #555;
+            color: #fff;
+            padding: 1px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 11px;
+        }
+
         #routes-list-container {
             flex: 1;
             overflow-y: auto;
@@ -514,7 +654,7 @@
 
         .search-box input:focus {
             outline: none;
-            border-color: #2196F3;
+            border-color: #FF9800;
         }
 
         .routes-list {
@@ -563,6 +703,12 @@
             text-overflow: ellipsis;
         }
 
+        .route-item-info {
+            font-size: 12px;
+            color: #888;
+            margin-top: 2px;
+        }
+
         .routes-list-empty {
             padding: 40px 20px;
             text-align: center;
@@ -593,14 +739,14 @@
             <div id="map"></div>
             <div id="loading-indicator">Plánuji trasu...</div>
             <div id="context-menu" class="context-menu">
-                <div class="context-menu-item" id="context-menu-delete">
+                <div class="context-menu-item delete" id="context-menu-delete">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <polyline points="3 6 5 6 21 6"></polyline>
                         <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
                     </svg>
                     Smazat bod
                 </div>
-                <div class="context-menu-item" id="context-menu-split">
+                <div class="context-menu-item split" id="context-menu-split">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <circle cx="6" cy="6" r="3"></circle>
                         <circle cx="6" cy="18" r="3"></circle>
@@ -610,6 +756,21 @@
                     </svg>
                     Rozdělit trasu
                 </div>
+                <div class="context-menu-separator"></div>
+                <div class="context-menu-item mode-routing" id="context-menu-mode-routing">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="12 6 12 12 16 14"></polyline>
+                    </svg>
+                    Změnit na plánování
+                </div>
+                <div class="context-menu-item mode-manual" id="context-menu-mode-manual">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 20h9"></path>
+                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                    </svg>
+                    Změnit na ruční
+                </div>
             </div>
         </div>
         <div id="right-panel">
@@ -618,23 +779,29 @@
                     <div class="panel-header-left">
                         <div class="panel-header-icon">🗺️</div>
                         <h3>MapyEditor</h3>
+                        <span class="version-badge">BETA</span>
                     </div>
                     <a href="About.html" class="about-link" target="_blank">ℹ️ O programu</a>
                 </div>
-                <div class="button-compact" style="margin-top: 12px;">
-                    <button class="secondary" id="btn-import-gpx">
+                <div class="toolbar" style="margin-top: 12px;">
+                    <button class="primary" id="btn-create-route" title="Nová trasa">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                            <polyline points="17 8 12 3 7 8"></polyline>
-                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                        Nová
+                    </button>
+                    <button class="secondary" id="btn-import-gpx" title="Nahrát GPX">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
                         </svg>
                         Nahrát
                     </button>
-                    <button class="secondary" id="btn-export-gpx">
+                    <button class="secondary" id="btn-export-gpx" title="Uložit GPX">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                            <polyline points="7 10 12 15 17 10"></polyline>
-                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                            <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                            <polyline points="7 3 7 8 15 8"></polyline>
                         </svg>
                         Uložit
                     </button>
@@ -662,26 +829,6 @@
                 <button class="secondary" id="btn-close-import" style="width: 100%;">Zavřít</button>
             </div>
 
-            <div class="panel-section">
-                <h3>Vytvoření trasy</h3>
-                <div class="button-compact">
-                    <button class="primary" id="btn-create-routing">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="12" cy="12" r="10"></circle>
-                            <polyline points="12 6 12 12 16 14"></polyline>
-                        </svg>
-                        Plánovaná
-                    </button>
-                    <button class="primary" id="btn-create-manual">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M12 20h9"></path>
-                            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-                        </svg>
-                        Ruční
-                    </button>
-                </div>
-            </div>
-
             <!-- Routes List Container -->
             <div id="routes-list-container">
                 <div class="routes-search">
@@ -696,7 +843,27 @@
             </div>
 
             <div class="panel-section" id="attributes-panel" style="display: none;">
-                <h3>Atributy trasy</h3>
+                <div class="panel-header-row">
+                    <h3>Editace trasy</h3>
+                    <div class="panel-menu-container">
+                        <button class="panel-menu-btn" id="route-menu-btn" title="Menu trasy">
+                            <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+                                <circle cx="12" cy="5" r="2"></circle>
+                                <circle cx="12" cy="12" r="2"></circle>
+                                <circle cx="12" cy="19" r="2"></circle>
+                            </svg>
+                        </button>
+                        <div class="panel-menu" id="route-menu">
+                            <div class="panel-menu-item delete" id="menu-delete-route">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="3 6 5 6 21 6"></polyline>
+                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                </svg>
+                                Smazat trasu
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 <div class="form-group">
                     <label for="route-name">Název</label>
                     <input type="text" id="route-name" placeholder="Název trasy">
@@ -714,8 +881,9 @@
                     <button class="muted btn-secondary" id="btn-cancel-route" disabled>Storno</button>
                 </div>
                 <div class="help-hint">
-                    <div class="help-hint-item">💡 <strong>Ctrl + klik</strong> – přidá nový bod</div>
-                    <div class="help-hint-item">💡 <strong>Pravé tlačítko</strong> – mazání bodu</div>
+                    <div class="help-hint-item">💡 <span class="key">CTRL</span> + klik – přidá plánovaný bod</div>
+                    <div class="help-hint-item">💡 <span class="key">ALT</span> + klik – přidá ruční bod</div>
+                    <div class="help-hint-item">💡 <strong>Pravé tlačítko</strong> – menu bodu</div>
                 </div>
             </div>
         </div>
@@ -725,21 +893,15 @@
         // ======================
         // CONFIGURATION
         // ======================
-        const API_KEY = 'eyJpIjo1LCJjIjoxNjM3MjMxMTY1fQ.wQ9-T6PhNT85YhqKRZPbp-iAIosTyIDfdw_ADBdUrn0';
-        const ROUTE_TYPE = 'foot_fast';
-
-        // ======================
-        // DATA MODEL
-        // ======================
-        let routes = [];
-        let nextRouteId = 1;
-        let activeRouteId = null;
-        let mode = 'none'; // 'none', 'editing-manual', 'editing-routing'
-        let tempRouteData = null; // Temporary data for route being created
-        let routeBackup = null; // Backup of route before editing (for cancel)
-        let ctrlPressed = false; // Track CTRL key state
-        let contextMenuData = null; // Store data for context menu actions
-        let routeSearchQuery = ''; // Store search query for routes list
+        const CONFIG = {
+            API_KEY: 'eyJpIjo1LCJjIjoxNjM3MjMxMTY1fQ.wQ9-T6PhNT85YhqKRZPbp-iAIosTyIDfdw_ADBdUrn0',
+            ROUTE_TYPE: 'foot_fast',
+            MAX_WAYPOINTS_PER_API_CALL: 15,
+            KEYS: {
+                ROUTING: 'Control',
+                MANUAL: 'Alt'
+            }
+        };
 
         const colorMap = {
             red: '#D32F2F',
@@ -748,45 +910,58 @@
         };
 
         // ======================
+        // DATA MODEL
+        // ======================
+        let routes = [];
+        let nextRouteId = 1;
+        let activeRouteId = null;
+        let isEditing = false;
+        let routeBackup = null;
+        let routeSearchQuery = '';
+        
+        // Key state tracking
+        let ctrlPressed = false;
+        let altPressed = false;
+        
+        // Context menu data
+        let contextMenuData = null;
+        
+        // Hover marker for adding midpoints
+        let hoverMarker = null;
+        let hoverMarkerData = null; // { segmentIndex, lat, lon, insertIndex, mode }
+
+        // ======================
         // MAP INITIALIZATION
         // ======================
         const map = L.map('map').setView([49.8729317, 14.8981184], 8);
 
-        /*
-        We store all our tile layers in an object, because we will
-        need to pass that to the layers switching map control.
-        */
         const tileLayers = {
-            'Základní': L.tileLayer(`https://api.mapy.com/v1/maptiles/basic/256/{z}/{x}/{y}?apikey=${API_KEY}`, {
+            'Základní': L.tileLayer(`https://api.mapy.com/v1/maptiles/basic/256/{z}/{x}/{y}?apikey=${CONFIG.API_KEY}`, {
                 minZoom: 0,
                 maxZoom: 20,
                 attribution: '<a href="https://api.mapy.com/copyright" target="_blank">&copy; Seznam.cz a.s. a další</a>',
             }),
-            'Turistická': L.tileLayer(`https://api.mapy.com/v1/maptiles/outdoor/256/{z}/{x}/{y}?apikey=${API_KEY}`, {
+            'Turistická': L.tileLayer(`https://api.mapy.com/v1/maptiles/outdoor/256/{z}/{x}/{y}?apikey=${CONFIG.API_KEY}`, {
                 minZoom: 0,
                 maxZoom: 20,
                 attribution: '<a href="https://api.mapy.com/copyright" target="_blank">&copy; Seznam.cz a.s. a další</a>',
             }),
-            'Zimní': L.tileLayer(`https://api.mapy.com/v1/maptiles/winter/256/{z}/{x}/{y}?apikey=${API_KEY}`, {
+            'Zimní': L.tileLayer(`https://api.mapy.com/v1/maptiles/winter/256/{z}/{x}/{y}?apikey=${CONFIG.API_KEY}`, {
                 minZoom: 0,
                 maxZoom: 20,
                 attribution: '<a href="https://api.mapy.com/copyright" target="_blank">&copy; Seznam.cz a.s. a další</a>',
             }),
-            'Letecká': L.tileLayer(`https://api.mapy.com/v1/maptiles/aerial/256/{z}/{x}/{y}?apikey=${API_KEY}`, {
+            'Letecká': L.tileLayer(`https://api.mapy.com/v1/maptiles/aerial/256/{z}/{x}/{y}?apikey=${CONFIG.API_KEY}`, {
                 minZoom: 0,
                 maxZoom: 20,
                 attribution: '<a href="https://api.mapy.com/copyright" target="_blank">&copy; Seznam.cz a.s. a další</a>',
             }),
         };
 
-        // Add the default Basic layer to the map (desaturated)
         tileLayers['Základní'].addTo(map);
-
-        // Leaflet has a built-in map control for switching layers
         L.control.layers(tileLayers).addTo(map);
 
         // Apply grayscale filter to Basic map layer
-        // For initial load, apply after a short delay to ensure container is ready
         setTimeout(() => {
             const container = tileLayers['Základní'].getContainer();
             if (container) {
@@ -794,7 +969,6 @@
             }
         }, 100);
 
-        // Also apply filter when switching to Basic map
         map.on('baselayerchange', function(e) {
             if (e.name === 'Základní') {
                 setTimeout(() => {
@@ -824,7 +998,7 @@
         // ======================
         // LAYERS & MARKERS
         // ======================
-        const routeLayers = {}; // routeId -> { line, markers }
+        const routeLayers = {}; // routeId -> { lines, markers }
 
         // ======================
         // UI ELEMENTS
@@ -838,49 +1012,51 @@
         // ======================
         // HELPER FUNCTIONS
         // ======================
+        function showLoading() {
+            loadingIndicator.style.display = 'block';
+        }
+
+        function hideLoading() {
+            loadingIndicator.style.display = 'none';
+        }
+
+        function getColorHex(colorName) {
+            return colorMap[colorName] || colorMap.red;
+        }
+
         function updateUI() {
-            const isEditing = mode !== 'none';
-            const route = activeRouteId ? routes.find(r => r.id === activeRouteId) : null;
-            const needsCrosshair = isEditing && route && (
-                (route.routeMode === 'manual' && route.coordinates.length < 2) ||
-                (route.routeMode === 'routing' && route.coordinates.length < 2)
-            );
-            
-            // Update map cursor
             const mapElement = document.getElementById('map');
-            if (needsCrosshair || (isEditing && ctrlPressed)) {
-                mapElement.classList.add('create-mode');
-            } else {
-                mapElement.classList.remove('create-mode');
+            const route = activeRouteId ? routes.find(r => r.id === activeRouteId) : null;
+            
+            // Update map cursor based on state
+            mapElement.classList.remove('add-routing-mode', 'add-manual-mode', 'add-start-mode');
+            
+            if (isEditing && route) {
+                if (route.waypoints.length === 0) {
+                    // Need to add start point
+                    mapElement.classList.add('add-start-mode');
+                } else if (ctrlPressed) {
+                    mapElement.classList.add('add-routing-mode');
+                } else if (altPressed) {
+                    mapElement.classList.add('add-manual-mode');
+                }
             }
             
             // Disable/enable buttons based on mode
-            document.getElementById('btn-create-manual').disabled = isEditing;
-            document.getElementById('btn-create-routing').disabled = isEditing;
+            document.getElementById('btn-create-route').disabled = isEditing;
             document.getElementById('btn-export-gpx').disabled = isEditing;
             document.getElementById('btn-import-gpx').disabled = isEditing;
             
             // Show/hide routes list and attributes panel
             const routesListContainer = document.getElementById('routes-list-container');
             
-            if (activeRouteId) {
-                const route = routes.find(r => r.id === activeRouteId);
-                
+            if (activeRouteId && isEditing) {
                 // Update status bar
-                if (mode === 'editing-manual') {
-                    if (route.coordinates.length < 2) {
-                        statusBar.textContent = `Vytváření ruční trasy: ${route.name || 'Bez názvu'} - klikejte do mapy`;
-                    } else {
-                        statusBar.textContent = `Úprava ruční trasy: ${route.name || 'Bez názvu'}`;
-                    }
-                } else if (mode === 'editing-routing') {
-                    if (route.coordinates.length === 0) {
-                        statusBar.textContent = `Vytváření plánované trasy: ${route.name || 'Bez názvu'} - nastavte start`;
-                    } else if (route.coordinates.length === 1) {
-                        statusBar.textContent = `Vytváření plánované trasy: ${route.name || 'Bez názvu'} - nastavte cíl`;
-                    } else {
-                        statusBar.textContent = `Úprava plánované trasy: ${route.name || 'Bez názvu'}`;
-                    }
+                if (route.waypoints.length === 0) {
+                    statusBar.textContent = `Nová trasa: ${route.name || 'Bez názvu'} - klikněte pro start`;
+                } else {
+                    const wpCount = route.waypoints.length;
+                    statusBar.textContent = `Úprava trasy: ${route.name || 'Bez názvu'} (${wpCount} bodů)`;
                 }
                 
                 // Hide routes list, show attributes panel
@@ -946,7 +1122,12 @@
                 nameDiv.className = 'route-item-name';
                 nameDiv.textContent = route.name || 'Bez názvu';
                 
+                const infoDiv = document.createElement('div');
+                infoDiv.className = 'route-item-info';
+                infoDiv.textContent = `${route.waypoints.length} bodů`;
+                
                 textDiv.appendChild(nameDiv);
+                textDiv.appendChild(infoDiv);
                 
                 routeItem.appendChild(colorIndicator);
                 routeItem.appendChild(textDiv);
@@ -970,34 +1151,775 @@
         }
 
         function highlightRouteInMap(routeId, highlight) {
-            if (mode !== 'none') return; // Don't highlight if editing
+            if (isEditing) return;
             
             const layer = routeLayers[routeId];
-            if (layer && layer.line) {
-                if (highlight) {
-                    layer.line.setStyle({
-                        weight: 8,
-                        opacity: 1
-                    });
-                } else {
-                    layer.line.setStyle({
-                        weight: 5,
-                        opacity: 0.95
-                    });
-                }
+            if (layer && layer.lines) {
+                layer.lines.forEach(line => {
+                    if (highlight) {
+                        line.setStyle({ weight: 8, opacity: 1 });
+                    } else {
+                        line.setStyle({ weight: 5, opacity: 0.95 });
+                    }
+                });
             }
         }
 
-        function showLoading() {
-            loadingIndicator.style.display = 'block';
+        // ======================
+        // SEGMENT LOGIC
+        // ======================
+        
+        /**
+         * Analyze waypoints and create segment definitions
+         * A segment is a continuous sequence of waypoints with the same mode
+         * Routing segments are split if they exceed MAX_WAYPOINTS_PER_API_CALL
+         */
+        function analyzeSegments(waypoints) {
+            if (waypoints.length < 2) return [];
+            
+            const segments = [];
+            let currentSegment = null;
+            
+            for (let i = 1; i < waypoints.length; i++) {
+                const wp = waypoints[i];
+                const mode = wp.mode;
+                
+                if (!currentSegment || currentSegment.mode !== mode) {
+                    // Start new segment
+                    if (currentSegment) {
+                        segments.push(currentSegment);
+                    }
+                    currentSegment = {
+                        mode: mode,
+                        startIndex: i - 1,  // Index of first waypoint
+                        endIndex: i,        // Index of last waypoint (will be updated)
+                        waypointIndices: [i - 1, i]
+                    };
+                } else {
+                    // Continue current segment
+                    currentSegment.endIndex = i;
+                    currentSegment.waypointIndices.push(i);
+                }
+            }
+            
+            if (currentSegment) {
+                segments.push(currentSegment);
+            }
+            
+            // Split routing segments that exceed API limit
+            const splitSegments = [];
+            for (const seg of segments) {
+                if (seg.mode === 'routing' && seg.waypointIndices.length > CONFIG.MAX_WAYPOINTS_PER_API_CALL) {
+                    // Split into multiple segments
+                    const indices = seg.waypointIndices;
+                    for (let i = 0; i < indices.length - 1; i += CONFIG.MAX_WAYPOINTS_PER_API_CALL - 1) {
+                        const end = Math.min(i + CONFIG.MAX_WAYPOINTS_PER_API_CALL, indices.length);
+                        splitSegments.push({
+                            mode: 'routing',
+                            startIndex: indices[i],
+                            endIndex: indices[end - 1],
+                            waypointIndices: indices.slice(i, end)
+                        });
+                        // Overlap by one to maintain continuity
+                        if (end < indices.length) i--;
+                    }
+                } else {
+                    splitSegments.push(seg);
+                }
+            }
+            
+            return splitSegments;
         }
 
-        function hideLoading() {
-            loadingIndicator.style.display = 'none';
+        /**
+         * Calculate geometry for a single routing segment via API
+         */
+        async function calculateRoutingSegment(waypoints, segmentIndices, previousGeometryEnd) {
+            const points = segmentIndices.map(i => waypoints[i]);
+            
+            // Determine start point - either previous geometry end or first waypoint
+            let startPoint;
+            if (previousGeometryEnd && segmentIndices[0] > 0) {
+                startPoint = previousGeometryEnd;
+            } else {
+                startPoint = points[0];
+            }
+            
+            const endPoint = points[points.length - 1];
+            const middlePoints = points.slice(1, -1);
+            
+            try {
+                const url = new URL('https://api.mapy.com/v1/routing/route');
+                url.searchParams.set('apikey', CONFIG.API_KEY);
+                url.searchParams.set('start', `${startPoint.lon},${startPoint.lat}`);
+                url.searchParams.set('end', `${endPoint.lon},${endPoint.lat}`);
+                url.searchParams.set('routeType', CONFIG.ROUTE_TYPE);
+                url.searchParams.set('format', 'geojson');
+                
+                if (middlePoints.length > 0) {
+                    middlePoints.forEach(wp => {
+                        url.searchParams.append('waypoints', `${wp.lon},${wp.lat}`);
+                    });
+                }
+                
+                const response = await fetch(url.toString());
+                if (!response.ok) {
+                    throw new Error('Routing API error');
+                }
+                
+                const data = await response.json();
+                const coords = data.geometry.geometry.coordinates.map(c => ({
+                    lon: c[0],
+                    lat: c[1]
+                }));
+                
+                return coords;
+            } catch (error) {
+                console.error('Routing error:', error);
+                // Fallback to straight line
+                return [startPoint, endPoint];
+            }
         }
 
-        function getColorHex(colorName) {
-            return colorMap[colorName] || colorMap.red;
+        /**
+         * Calculate geometry for a manual segment (straight lines)
+         */
+        function calculateManualSegment(waypoints, segmentIndices, previousGeometryEnd) {
+            const geometry = [];
+            
+            // If we have previousGeometryEnd, start from there and skip the first waypoint
+            // (it's the shared boundary point with previous segment)
+            if (previousGeometryEnd && segmentIndices.length > 0 && segmentIndices[0] > 0) {
+                geometry.push({ lat: previousGeometryEnd.lat, lon: previousGeometryEnd.lon });
+                // Skip first waypoint (shared boundary), start from second
+                for (let i = 1; i < segmentIndices.length; i++) {
+                    const wp = waypoints[segmentIndices[i]];
+                    geometry.push({ lat: wp.lat, lon: wp.lon });
+                }
+            } else {
+                // No previous geometry (first segment) - include all waypoints
+                for (let i = 0; i < segmentIndices.length; i++) {
+                    const wp = waypoints[segmentIndices[i]];
+                    geometry.push({ lat: wp.lat, lon: wp.lon });
+                }
+            }
+            
+            return geometry;
+        }
+
+        // ======================
+        // SMART SEGMENT RECALCULATION
+        // ======================
+        
+        /**
+         * Get the end point of previous segment's geometry (for continuity)
+         */
+        function getPreviousGeometryEnd(route, segmentIndex) {
+            if (segmentIndex > 0 && route.segments[segmentIndex - 1]) {
+                const prevGeom = route.segments[segmentIndex - 1].geometry;
+                if (prevGeom && prevGeom.length > 0) {
+                    return prevGeom[prevGeom.length - 1];
+                }
+            }
+            return null;
+        }
+        
+        /**
+         * Calculate geometry for a single segment
+         */
+        async function calculateSegmentGeometry(route, segment, previousGeometryEnd) {
+            if (segment.mode === 'routing') {
+                return await calculateRoutingSegment(
+                    route.waypoints,
+                    segment.waypointIndices,
+                    previousGeometryEnd
+                );
+            } else {
+                return calculateManualSegment(
+                    route.waypoints,
+                    segment.waypointIndices,
+                    previousGeometryEnd
+                );
+            }
+        }
+        
+        /**
+         * Recalculate geometry for a range of segments
+         */
+        async function recalculateSegmentRange(route, fromIndex, toIndex) {
+            const hasRouting = route.segments.slice(fromIndex, toIndex + 1).some(s => s.mode === 'routing');
+            if (hasRouting) showLoading();
+            
+            try {
+                for (let i = fromIndex; i <= toIndex && i < route.segments.length; i++) {
+                    const seg = route.segments[i];
+                    const prevEnd = getPreviousGeometryEnd(route, i);
+                    seg.geometry = await calculateSegmentGeometry(route, seg, prevEnd);
+                }
+            } finally {
+                if (hasRouting) hideLoading();
+            }
+            
+            // Fix manual-to-routing connections in the affected range and neighbors
+            fixManualToRoutingConnections(route);
+        }
+        
+        /**
+         * Check if two segment definitions are equivalent (same waypoints)
+         */
+        function segmentsAreEquivalent(oldSeg, newSeg) {
+            if (!oldSeg || !newSeg) return false;
+            if (oldSeg.mode !== newSeg.mode) return false;
+            if (oldSeg.waypointIndices.length !== newSeg.waypointIndices.length) return false;
+            return oldSeg.waypointIndices.every((idx, i) => idx === newSeg.waypointIndices[i]);
+        }
+        
+        /**
+         * Main smart recalculation function
+         * Handles all cases: move, insert, append, delete, mode change
+         * 
+         * @param {Object} route - The route to recalculate
+         * @param {Object} options - Options for recalculation
+         * @param {string} options.operation - 'move', 'insert', 'append', 'delete', 'modeChange', 'full'
+         * @param {number} options.waypointIndex - Index of affected waypoint (for move, insert, delete)
+         * @param {number} options.segmentIndex - Index of affected segment (for insert midpoint)
+         */
+        async function smartRecalculate(route, options = {}) {
+            const { operation = 'full', waypointIndex, segmentIndex } = options;
+            
+            // For 'move' operation, structure doesn't change - just recalculate affected segments
+            if (operation === 'move' && waypointIndex !== undefined && route.segments.length > 0) {
+                // Find segments containing this waypoint
+                const affectedIndices = [];
+                for (let i = 0; i < route.segments.length; i++) {
+                    if (route.segments[i].waypointIndices.includes(waypointIndex)) {
+                        affectedIndices.push(i);
+                    }
+                }
+                
+                if (affectedIndices.length === 0) return;
+                
+                let fromIdx = Math.min(...affectedIndices);
+                let toIdx = Math.max(...affectedIndices);
+                
+                // If waypoint is at boundary, also recalculate next segment
+                const isAtBoundary = affectedIndices.length > 1 || 
+                    route.segments[fromIdx].startIndex === waypointIndex ||
+                    route.segments[toIdx].endIndex === waypointIndex;
+                
+                if (isAtBoundary && toIdx + 1 < route.segments.length) {
+                    toIdx++;
+                }
+                
+                await recalculateSegmentRange(route, fromIdx, toIdx);
+                return;
+            }
+            
+            // For operations that change structure, rebuild and compare
+            const oldSegments = route.segments;
+            const newSegmentDefs = analyzeSegments(route.waypoints);
+            
+            // Build new segments, preserving geometry where possible
+            route.segments = [];
+            let firstChangedIndex = -1;
+            
+            for (let i = 0; i < newSegmentDefs.length; i++) {
+                const newDef = newSegmentDefs[i];
+                const oldSeg = oldSegments[i];
+                
+                const newSeg = {
+                    mode: newDef.mode,
+                    startIndex: newDef.startIndex,
+                    endIndex: newDef.endIndex,
+                    waypointIndices: newDef.waypointIndices,
+                    geometry: []
+                };
+                
+                // Check if we can reuse old geometry
+                if (segmentsAreEquivalent(oldSeg, newDef) && oldSeg.geometry) {
+                    newSeg.geometry = oldSeg.geometry;
+                } else {
+                    // Mark this as first changed segment
+                    if (firstChangedIndex === -1) {
+                        firstChangedIndex = i;
+                    }
+                }
+                
+                route.segments.push(newSeg);
+            }
+            
+            // If no segments changed and counts match, we're done
+            if (firstChangedIndex === -1 && newSegmentDefs.length === oldSegments.length) {
+                return;
+            }
+            
+            // Recalculate from first changed segment to end
+            // (because each segment depends on previous geometry end)
+            const startIdx = firstChangedIndex === -1 ? 0 : firstChangedIndex;
+            await recalculateSegmentRange(route, startIdx, route.segments.length - 1);
+            
+            // Fix all manual-to-routing connections
+            fixManualToRoutingConnections(route);
+        }
+        
+        /**
+         * Fix connections between manual and routing segments
+         * Manual segments should end at the start of following routing segments (no gaps)
+         */
+        function fixManualToRoutingConnections(route) {
+            for (let i = 0; i < route.segments.length - 1; i++) {
+                const currentSeg = route.segments[i];
+                const nextSeg = route.segments[i + 1];
+                
+                // If current is manual and next is routing, fix the connection
+                if (currentSeg.mode === 'manual' && nextSeg.mode === 'routing' &&
+                    currentSeg.geometry.length > 0 && nextSeg.geometry.length > 0) {
+                    const routingStart = nextSeg.geometry[0];
+                    currentSeg.geometry[currentSeg.geometry.length - 1] = {
+                        lat: routingStart.lat,
+                        lon: routingStart.lon
+                    };
+                }
+            }
+        }
+        
+        /**
+         * Legacy function for full recalculation (for import, etc.)
+         */
+        async function recalculateRouteGeometry(route) {
+            await smartRecalculate(route, { operation: 'full' });
+        }
+
+        // ======================
+        // HOVER MARKER FOR MIDPOINTS
+        // ======================
+        
+        /**
+         * Find the closest point on a polyline to a given latlng
+         * Returns the point, geometry index, and which waypoint pair it's between
+         */
+        function findClosestPointOnGeometry(latlng, segment, route) {
+            const geometry = segment.geometry;
+            let closestDist = Infinity;
+            let closestPoint = null;
+            let closestGeomIndex = 0;
+            
+            for (let i = 0; i < geometry.length - 1; i++) {
+                const p1 = geometry[i];
+                const p2 = geometry[i + 1];
+                
+                // Project point onto line segment
+                const projected = projectPointOnSegment(latlng, p1, p2);
+                const dist = distanceSquared(latlng, projected);
+                
+                if (dist < closestDist) {
+                    closestDist = dist;
+                    closestPoint = projected;
+                    closestGeomIndex = i;
+                }
+            }
+            
+            // Now determine which waypoint pair this geometry index falls between
+            let insertIndex;
+            let inheritedMode;
+            
+            if (segment.mode === 'manual') {
+                // For manual segments:
+                // - If startIndex > 0: geometry[0] = previousGeometryEnd, geometry[i] for i>=1 maps to waypointIndices[i]
+                // - If startIndex === 0: geometry[i] maps directly to waypointIndices[i]
+                const hasPreviousGeometry = segment.startIndex > 0;
+                
+                if (hasPreviousGeometry) {
+                    // geometry[0] = previousGeometryEnd (not a waypoint)
+                    // geometry[i] for i >= 1 corresponds to waypointIndices[i]
+                    if (closestGeomIndex === 0) {
+                        // Clicking between previousGeometryEnd and first actual manual waypoint
+                        // Insert at position of first manual waypoint (waypointIndices[1])
+                        insertIndex = segment.waypointIndices[1];
+                    } else {
+                        // Clicking between geometry[closestGeomIndex] and geometry[closestGeomIndex+1]
+                        // which corresponds to waypointIndices[closestGeomIndex] and waypointIndices[closestGeomIndex+1]
+                        insertIndex = segment.waypointIndices[closestGeomIndex] + 1;
+                    }
+                } else {
+                    // First segment - geometry maps directly to waypoints
+                    // geometry[i] = waypoints[waypointIndices[i]]
+                    insertIndex = segment.waypointIndices[closestGeomIndex] + 1;
+                }
+                inheritedMode = 'manual';
+            } else {
+                // For routing segments, find which pair of waypoints this point is between
+                // We need to find geometry indices that correspond to waypoints
+                const waypointGeomIndices = findWaypointGeometryIndices(segment, route);
+                
+                // Find which segment of waypoints we're in
+                let wpPairStart = 0;
+                for (let i = 0; i < waypointGeomIndices.length - 1; i++) {
+                    if (closestGeomIndex >= waypointGeomIndices[i] && closestGeomIndex < waypointGeomIndices[i + 1]) {
+                        wpPairStart = i;
+                        break;
+                    }
+                    wpPairStart = i;
+                }
+                
+                // Insert after this waypoint in the segment
+                insertIndex = segment.waypointIndices[wpPairStart] + 1;
+                inheritedMode = 'routing';
+            }
+            
+            return { 
+                point: closestPoint, 
+                geomIndex: closestGeomIndex, 
+                distance: Math.sqrt(closestDist),
+                insertIndex: insertIndex,
+                mode: inheritedMode
+            };
+        }
+        
+        /**
+         * Find geometry indices that correspond to waypoints in a routing segment
+         */
+        function findWaypointGeometryIndices(segment, route) {
+            const indices = [0]; // First waypoint is at geometry index 0
+            
+            // For each intermediate waypoint, find closest geometry point
+            for (let i = 1; i < segment.waypointIndices.length - 1; i++) {
+                const wpIdx = segment.waypointIndices[i];
+                const wp = route.waypoints[wpIdx];
+                
+                let closestDist = Infinity;
+                let closestIdx = 0;
+                
+                for (let j = 0; j < segment.geometry.length; j++) {
+                    const g = segment.geometry[j];
+                    const dist = (wp.lat - g.lat) ** 2 + (wp.lon - g.lon) ** 2;
+                    if (dist < closestDist) {
+                        closestDist = dist;
+                        closestIdx = j;
+                    }
+                }
+                indices.push(closestIdx);
+            }
+            
+            indices.push(segment.geometry.length - 1); // Last waypoint is at last geometry index
+            return indices;
+        }
+        
+        /**
+         * Project a point onto a line segment
+         */
+        function projectPointOnSegment(point, p1, p2) {
+            const dx = p2.lon - p1.lon;
+            const dy = p2.lat - p1.lat;
+            
+            if (dx === 0 && dy === 0) {
+                return { lat: p1.lat, lon: p1.lon };
+            }
+            
+            const t = Math.max(0, Math.min(1, 
+                ((point.lng - p1.lon) * dx + (point.lat - p1.lat) * dy) / (dx * dx + dy * dy)
+            ));
+            
+            return {
+                lat: p1.lat + t * dy,
+                lon: p1.lon + t * dx
+            };
+        }
+        
+        /**
+         * Calculate squared distance between two points (for comparison, avoids sqrt)
+         */
+        function distanceSquared(p1, p2) {
+            const dlat = p1.lat - p2.lat;
+            const dlon = (p1.lng || p1.lon) - p2.lon;
+            return dlat * dlat + dlon * dlon;
+        }
+        
+        /**
+         * Show hover marker at position
+         */
+        function showHoverMarker(lat, lon, data) {
+            if (!hoverMarker) {
+                hoverMarker = L.marker([lat, lon], {
+                    icon: L.divIcon({
+                        className: 'hover-midpoint-marker',
+                        html: `<div style="width: 24px; height: 24px; background: rgba(76, 175, 80, 0.95); border: 3px solid white; border-radius: 50%; box-shadow: 0 2px 8px rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; cursor: crosshair; pointer-events: auto;">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3">
+                                <line x1="12" y1="5" x2="12" y2="19"></line>
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                            </svg>
+                        </div>`,
+                        iconSize: [24, 24],
+                        iconAnchor: [12, 12]
+                    }),
+                    interactive: true,
+                    zIndexOffset: 2000
+                }).addTo(map);
+                
+                hoverMarker.on('click', async (e) => {
+                    L.DomEvent.stopPropagation(e);
+                    if (hoverMarkerData) {
+                        const dataToInsert = { ...hoverMarkerData };
+                        await insertMidpoint(dataToInsert);
+                    }
+                });
+            } else {
+                hoverMarker.setLatLng([lat, lon]);
+                if (!map.hasLayer(hoverMarker)) {
+                    hoverMarker.addTo(map);
+                }
+            }
+            
+            hoverMarkerData = data;
+        }
+        
+        /**
+         * Hide hover marker
+         */
+        function hideHoverMarker() {
+            if (hoverMarker && map.hasLayer(hoverMarker)) {
+                map.removeLayer(hoverMarker);
+            }
+            hoverMarkerData = null;
+        }
+        
+        /**
+         * Update hover marker position based on mouse location
+         * Called from map mousemove handler
+         */
+        function updateHoverMarkerPosition(latlng) {
+            // Only show when editing and have segments
+            if (!isEditing || !activeRouteId) {
+                hideHoverMarker();
+                return;
+            }
+            
+            const route = routes.find(r => r.id === activeRouteId);
+            if (!route || !route.segments || route.segments.length === 0) {
+                hideHoverMarker();
+                return;
+            }
+            
+            // Check if mouse is near any existing waypoint (within 20 pixels)
+            const mousePoint = map.latLngToContainerPoint(latlng);
+            for (let i = 0; i < route.waypoints.length; i++) {
+                const wp = route.waypoints[i];
+                const wpPixels = map.latLngToContainerPoint([wp.lat, wp.lon]);
+                const distanceToWp = Math.sqrt(
+                    Math.pow(mousePoint.x - wpPixels.x, 2) + 
+                    Math.pow(mousePoint.y - wpPixels.y, 2)
+                );
+                
+                // If near existing waypoint, hide insert marker
+                if (distanceToWp < 20) {
+                    hideHoverMarker();
+                    return;
+                }
+            }
+            
+            // Find closest point on any segment
+            let closestResult = null;
+            let closestSegmentIndex = -1;
+            let minPixelDistance = Infinity;
+            
+            for (let segIdx = 0; segIdx < route.segments.length; segIdx++) {
+                const segment = route.segments[segIdx];
+                if (!segment.geometry || segment.geometry.length < 2) continue;
+                
+                const result = findClosestPointOnGeometry(latlng, segment, route);
+                if (result.point) {
+                    // Calculate distance in pixels
+                    const pointPixels = map.latLngToContainerPoint([result.point.lat, result.point.lon]);
+                    const pixelDistance = Math.sqrt(
+                        Math.pow(mousePoint.x - pointPixels.x, 2) + 
+                        Math.pow(mousePoint.y - pointPixels.y, 2)
+                    );
+                    
+                    if (pixelDistance < minPixelDistance) {
+                        minPixelDistance = pixelDistance;
+                        closestResult = result;
+                        closestSegmentIndex = segIdx;
+                    }
+                }
+            }
+            
+            // Show marker if close enough (within 20 pixels)
+            if (closestResult && minPixelDistance < 20) {
+                showHoverMarker(closestResult.point.lat, closestResult.point.lon, {
+                    lat: closestResult.point.lat,
+                    lon: closestResult.point.lon,
+                    insertIndex: closestResult.insertIndex,
+                    mode: closestResult.mode,
+                    segmentIndex: closestSegmentIndex
+                });
+            } else {
+                hideHoverMarker();
+            }
+        }
+        
+        /**
+         * Insert a midpoint at the specified position
+         * Optimized to only recalculate affected segments
+         */
+        async function insertMidpoint(data) {
+            const route = routes.find(r => r.id === activeRouteId);
+            if (!route) return;
+            
+            const { lat, lon, insertIndex, mode, segmentIndex } = data;
+            
+            // Validate insert index
+            if (insertIndex < 1 || insertIndex > route.waypoints.length) {
+                console.error('Invalid insert index:', insertIndex);
+                return;
+            }
+            
+            // Insert the new waypoint
+            route.waypoints.splice(insertIndex, 0, {
+                lat: lat,
+                lon: lon,
+                mode: mode
+            });
+            
+            hideHoverMarker();
+            
+            // Optimized recalculation: only recalculate affected segments
+            await smartRecalculate(route, { operation: 'insert', waypointIndex: insertIndex, segmentIndex });
+            
+            renderRoute(route, true);
+            updateUI();
+        }
+        
+        // ======================
+        // ROUTE RENDERING
+        // ======================
+        function renderRoute(route, isActive = false) {
+            // Remove existing layers
+            if (routeLayers[route.id]) {
+                if (routeLayers[route.id].lines) {
+                    routeLayers[route.id].lines.forEach(l => map.removeLayer(l));
+                }
+                if (routeLayers[route.id].markers) {
+                    routeLayers[route.id].markers.forEach(m => map.removeLayer(m));
+                }
+            }
+
+            if (route.waypoints.length === 0) {
+                routeLayers[route.id] = { lines: [], markers: [] };
+                return;
+            }
+
+            const color = getColorHex(route.color);
+            const lines = [];
+            const markers = [];
+
+            // Render segments
+            if (route.segments && route.segments.length > 0) {
+                for (const segment of route.segments) {
+                    if (segment.geometry.length < 2) continue;
+                    
+                    const latLngs = segment.geometry.map(c => [c.lat, c.lon]);
+                    
+                    const lineOptions = {
+                        color: color,
+                        weight: isActive ? 7 : 5,
+                        opacity: 0.95
+                    };
+                    
+                    // Dashed line for manual segments (only in edit mode)
+                    if (isActive && segment.mode === 'manual') {
+                        lineOptions.dashArray = '10, 10';
+                    }
+                    
+                    const line = L.polyline(latLngs, lineOptions).addTo(map);
+                    
+                    if (!isActive) {
+                        line.bindTooltip(route.name || `Trasa ${route.id}`, {
+                            permanent: false,
+                            direction: 'top',
+                            className: 'route-tooltip'
+                        });
+                        
+                        line.on('mouseover', () => {
+                            if (!isEditing) {
+                                highlightRouteInMap(route.id, true);
+                            }
+                        });
+                        
+                        line.on('mouseout', () => {
+                            if (!isEditing) {
+                                highlightRouteInMap(route.id, false);
+                            }
+                        });
+                        
+                        line.on('click', () => {
+                            if (!isEditing) {
+                                activateRouteWithBestFit(route.id);
+                            }
+                        });
+                    }
+                    // No special handlers needed for active route lines
+                    // The map mousemove handler takes care of hover marker
+                    
+                    lines.push(line);
+                }
+            }
+
+            // Render waypoint markers (only when active)
+            if (isActive) {
+                route.waypoints.forEach((wp, index) => {
+                    const isFirst = index === 0;
+                    const isLast = index === route.waypoints.length - 1;
+                    
+                    let markerColor, markerSize;
+                    if (isFirst) {
+                        markerColor = '#4CAF50'; // Green for start
+                        markerSize = 16;
+                    } else if (isLast) {
+                        markerColor = '#F44336'; // Red for end
+                        markerSize = 16;
+                    } else if (wp.mode === 'routing') {
+                        markerColor = '#FFC107'; // Yellow for routing
+                        markerSize = 14;
+                    } else {
+                        markerColor = '#90CAF9'; // Light blue for manual
+                        markerSize = 14;
+                    }
+                    
+                    const marker = L.marker([wp.lat, wp.lon], {
+                        draggable: true,
+                        icon: L.divIcon({
+                            className: 'vertex-marker',
+                            html: `<div style="width: ${markerSize}px; height: ${markerSize}px; background: ${markerColor}; border: 3px solid white; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>`,
+                            iconSize: [markerSize, markerSize]
+                        })
+                    }).addTo(map);
+                    
+                    marker.on('dragend', async () => {
+                        const latlng = marker.getLatLng();
+                        route.waypoints[index].lat = latlng.lat;
+                        route.waypoints[index].lon = latlng.lng;
+                        await smartRecalculate(route, { operation: 'move', waypointIndex: index });
+                        renderRoute(route, true);
+                    });
+                    
+                    marker.on('contextmenu', (e) => {
+                        L.DomEvent.stopPropagation(e);
+                        const pixel = map.latLngToContainerPoint(e.latlng);
+                        showContextMenu(pixel.x, pixel.y, { type: 'waypoint', index: index, mode: wp.mode });
+                    });
+                    
+                    markers.push(marker);
+                });
+            }
+
+            routeLayers[route.id] = { lines, markers };
+        }
+
+        function renderAllRoutes() {
+            routes.forEach(route => {
+                const isActive = route.id === activeRouteId && isEditing;
+                renderRoute(route, isActive);
+            });
         }
 
         // ======================
@@ -1010,6 +1932,20 @@
             contextMenu.style.left = x + 'px';
             contextMenu.style.top = y + 'px';
             contextMenu.style.display = 'block';
+            
+            // Show/hide mode change options based on current mode
+            const routingOption = document.getElementById('context-menu-mode-routing');
+            const manualOption = document.getElementById('context-menu-mode-manual');
+            
+            if (data.type === 'waypoint' && data.index > 0) {
+                // Not start point, can change mode
+                routingOption.style.display = data.mode === 'routing' ? 'none' : 'flex';
+                manualOption.style.display = data.mode === 'manual' ? 'none' : 'flex';
+            } else {
+                // Start point - hide mode options
+                routingOption.style.display = 'none';
+                manualOption.style.display = 'none';
+            }
         }
         
         function hideContextMenu() {
@@ -1017,565 +1953,118 @@
             contextMenuData = null;
         }
         
-        // Hide context menu on any click outside
         document.addEventListener('click', () => {
             hideContextMenu();
         });
         
-        // Context menu delete action
+        // Context menu: Delete point
         document.getElementById('context-menu-delete').addEventListener('click', async (e) => {
             e.stopPropagation();
-            if (contextMenuData) {
-                await deletePoint(contextMenuData);
+            if (contextMenuData && contextMenuData.type === 'waypoint') {
+                await deleteWaypoint(contextMenuData.index);
             }
             hideContextMenu();
         });
         
-        // Context menu split action
+        // Context menu: Split route
         document.getElementById('context-menu-split').addEventListener('click', async (e) => {
             e.stopPropagation();
-            if (contextMenuData) {
-                await splitRoute(contextMenuData);
+            if (contextMenuData && contextMenuData.type === 'waypoint') {
+                await splitRoute(contextMenuData.index);
             }
             hideContextMenu();
         });
         
-        // Function to split route at a point
-        async function splitRoute(data) {
+        // Context menu: Change to routing
+        document.getElementById('context-menu-mode-routing').addEventListener('click', async (e) => {
+            e.stopPropagation();
+            if (contextMenuData && contextMenuData.type === 'waypoint') {
+                await changeWaypointMode(contextMenuData.index, 'routing');
+            }
+            hideContextMenu();
+        });
+        
+        // Context menu: Change to manual
+        document.getElementById('context-menu-mode-manual').addEventListener('click', async (e) => {
+            e.stopPropagation();
+            if (contextMenuData && contextMenuData.type === 'waypoint') {
+                await changeWaypointMode(contextMenuData.index, 'manual');
+            }
+            hideContextMenu();
+        });
+        
+        async function deleteWaypoint(index) {
             const route = routes.find(r => r.id === activeRouteId);
             if (!route) return;
             
-            // Determine the split index based on route mode
-            let splitIndex;
-            
-            if (route.routeMode === 'routing') {
-                // For routing mode: start=0, waypoints=1..n, end=last
-                const waypoints = route.waypoints || [];
-                const totalPoints = 2 + waypoints.length;
-                
-                if (data.type === 'start' || data.type === 'end') {
-                    alert('Nelze rozdělit trasu na prvním nebo posledním bodě.');
-                    return;
-                }
-                
-                if (data.type !== 'waypoint') {
-                    return; // Safety check
-                }
-                
-                // We're splitting at a waypoint
-                const waypointIndex = data.index;
-                
-                // Split waypoints into two groups
-                const waypoints1 = waypoints.slice(0, waypointIndex);
-                const waypoints2 = waypoints.slice(waypointIndex + 1);
-                
-                // First route: original start -> waypoints up to split point -> split point as end
-                const start1 = route.coordinates[0];
-                const end1 = waypoints[waypointIndex];
-                
-                // Second route: split point as start -> remaining waypoints -> original end
-                const start2 = waypoints[waypointIndex];
-                const end2 = route.coordinates[route.coordinates.length - 1];
-                
-                // Show loading indicator
-                showLoading();
-                
-                try {
-                    // Recalculate both routes
-                    const coords1 = await calculateRoute(start1, end1, waypoints1);
-                    const coords2 = await calculateRoute(start2, end2, waypoints2);
-                    
-                    if (!coords1 || !coords2) {
-                        alert('Nepodařilo se přeplánovat rozdělené trasy.');
-                        return;
-                    }
-                    
-                    // Update first route
-                    route.coordinates = coords1;
-                    route.waypoints = waypoints1;
-                    
-                    // Create second route with recalculated geometry
-                    const newRoute = createRoute(
-                        coords2,
-                        route.name + ' (2)',
-                        route.color,
-                        route.routeMode,
-                        waypoints2
-                    );
-                    
-                } catch (error) {
-                    alert('Chyba při rozdělování trasy: ' + error.message);
-                } finally {
-                    hideLoading();
-                }
-                
-            } else {
-                // Manual mode - simple coordinate split
-                if (data.index === 0 || data.index === route.coordinates.length - 1) {
-                    alert('Nelze rozdělit trasu na prvním nebo posledním bodě.');
-                    return;
-                }
-                
-                splitIndex = data.index;
-                
-                // Split coordinates
-                const coords1 = route.coordinates.slice(0, splitIndex + 1);
-                const coords2 = route.coordinates.slice(splitIndex);
-                
-                // Update first route with first part
-                route.coordinates = coords1;
-                
-                // Create second route
-                const newRoute = createRoute(
-                    coords2,
-                    route.name + ' (2)',
-                    route.color,
-                    route.routeMode,
-                    []
-                );
+            if (route.waypoints.length <= 2) {
+                alert('Trasa musí mít minimálně 2 body.');
+                return;
             }
+            
+            route.waypoints.splice(index, 1);
+            await recalculateRouteGeometry(route);
+            renderRoute(route, true);
+            updateUI();
+        }
+        
+        async function splitRoute(index) {
+            const route = routes.find(r => r.id === activeRouteId);
+            if (!route) return;
+            
+            if (index === 0 || index === route.waypoints.length - 1) {
+                alert('Nelze rozdělit trasu na prvním nebo posledním bodě.');
+                return;
+            }
+            
+            // Create second route with waypoints from split point
+            const wp2 = route.waypoints.slice(index);
+            // Make the split point the new start
+            wp2[0] = { ...wp2[0], mode: 'start' };
+            
+            const newRoute = {
+                id: nextRouteId++,
+                name: route.name + ' (2)',
+                color: route.color,
+                waypoints: wp2,
+                segments: []
+            };
+            
+            // Truncate original route
+            route.waypoints = route.waypoints.slice(0, index + 1);
+            
+            // Recalculate both routes
+            await recalculateRouteGeometry(route);
+            await recalculateRouteGeometry(newRoute);
+            
+            routes.push(newRoute);
             
             // Exit editing mode
             deactivateRoute();
-            
-            // Render all routes to show both new routes
             renderAllRoutes();
             updateUI();
         }
         
-        // Function to delete a point and reorganize route
-        async function deletePoint(data) {
+        async function changeWaypointMode(index, newMode) {
             const route = routes.find(r => r.id === activeRouteId);
-            if (!route) return;
+            if (!route || index === 0) return;
             
-            if (route.routeMode === 'routing') {
-                // For routing mode
-                const waypoints = route.waypoints || [];
-                const totalPoints = 2 + waypoints.length; // start + waypoints + end
-                
-                // Prevent deleting if only 2 points remain
-                if (totalPoints <= 2) {
-                    alert('Trasa musí mít minimálně start a cíl.');
-                    return;
-                }
-                
-                // Determine what type of point we're deleting
-                if (data.type === 'start') {
-                    // Start becomes first waypoint (or end if no waypoints)
-                    if (waypoints.length > 0) {
-                        const newStart = waypoints[0];
-                        route.waypoints = waypoints.slice(1);
-                        tempRouteData.start = { ...newStart };
-                        tempRouteData.waypoints = route.waypoints;
-                    } else {
-                        // No waypoints, end becomes start - delete route
-                        alert('Nelze smazat start, trasa by zůstala pouze s jedním bodem.');
-                        return;
-                    }
-                } else if (data.type === 'end') {
-                    // End becomes last waypoint
-                    if (waypoints.length > 0) {
-                        const newEnd = waypoints[waypoints.length - 1];
-                        route.waypoints = waypoints.slice(0, -1);
-                        tempRouteData.end = { ...newEnd };
-                        tempRouteData.waypoints = route.waypoints;
-                    } else {
-                        // No waypoints, start becomes end - delete route
-                        alert('Nelze smazat cíl, trasa by zůstala pouze s jedním bodem.');
-                        return;
-                    }
-                } else if (data.type === 'waypoint') {
-                    // Delete waypoint at index
-                    route.waypoints.splice(data.index, 1);
-                    tempRouteData.waypoints = route.waypoints;
-                }
-                
-                // Recalculate route
-                await recalculateRoutingRoute();
-                
-            } else {
-                // For manual mode
-                if (route.coordinates.length <= 2) {
-                    alert('Trasa musí mít minimálně 2 body.');
-                    return;
-                }
-                
-                // Simply remove the coordinate at index
-                route.coordinates.splice(data.index, 1);
-                renderRoute(route, true);
-            }
-        }
-
-        // ======================
-        // ROUTE RENDERING
-        // ======================
-        function renderRoute(route, isActive = false) {
-            // Remove existing layer
-            if (routeLayers[route.id]) {
-                if (routeLayers[route.id].line) {
-                    map.removeLayer(routeLayers[route.id].line);
-                }
-                if (routeLayers[route.id].markers) {
-                    routeLayers[route.id].markers.forEach(m => map.removeLayer(m));
-                }
-            }
-
-            if (route.coordinates.length === 0) return;
-
-            const color = getColorHex(route.color);
-            const latLngs = route.coordinates.map(c => [c.lat, c.lon]);
-
-            // Create polyline
-            const line = L.polyline(latLngs, {
-                color: color,
-                weight: isActive ? 7 : 5,
-                opacity: 0.95
-            }).addTo(map);
-
-            // Add tooltip for inactive routes
-            if (!isActive) {
-                line.bindTooltip(route.name || `Trasa ${route.id}`, {
-                    permanent: false,
-                    direction: 'top',
-                    className: 'route-tooltip'
-                });
-                
-                // Store reference to update tooltip later
-                route._tooltip = line.getTooltip();
-                
-                // Highlight on hover
-                line.on('mouseover', function() {
-                    if (mode === 'none') {
-                        this.setStyle({
-                            weight: 8,
-                            opacity: 1
-                        });
-                    }
-                });
-                
-                line.on('mouseout', function() {
-                    if (mode === 'none') {
-                        this.setStyle({
-                            weight: 5,
-                            opacity: 0.95
-                        });
-                    }
-                });
-            }
-
-            // Click on line to activate (only if not currently editing)
-            line.on('click', () => {
-                if (mode === 'none') {
-                    activateRouteWithBestFit(route.id);
-                }
-            });
-
-            const markers = [];
-
-            if (isActive) {
-                // For routing mode (both creating and editing), show start, end, and waypoint markers
-                if ((mode === 'creating-routing' || mode === 'editing-routing') && route.coordinates.length > 0) {
-                    const firstCoord = route.coordinates[0];
-                    const lastCoord = route.coordinates[route.coordinates.length - 1];
-                    
-                    // Start marker (green)
-                    const startMarker = L.marker([firstCoord.lat, firstCoord.lon], {
-                        draggable: true,
-                        icon: L.divIcon({
-                            className: 'vertex-marker',
-                            html: '<div style="width: 16px; height: 16px; background: #4CAF50; border: 3px solid white; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>',
-                            iconSize: [16, 16]
-                        })
-                    }).addTo(map);
-
-                    startMarker.on('dragend', async () => {
-                        const latlng = startMarker.getLatLng();
-                        if (!tempRouteData) {
-                            tempRouteData = {
-                                start: { lat: latlng.lat, lon: latlng.lng },
-                                end: { lat: lastCoord.lat, lon: lastCoord.lon },
-                                waypoints: route.waypoints || [],
-                                startMarker: startMarker,
-                                endMarker: null
-                            };
-                        } else {
-                            tempRouteData.start = { lat: latlng.lat, lon: latlng.lng };
-                            tempRouteData.startMarker = startMarker;
-                        }
-                        await recalculateRoutingRoute();
-                    });
-
-                    // Right-click for context menu
-                    startMarker.on('contextmenu', (e) => {
-                        L.DomEvent.stopPropagation(e);
-                        const pixel = map.latLngToContainerPoint(e.latlng);
-                        showContextMenu(pixel.x, pixel.y, { type: 'start' });
-                    });
-
-                    // End marker (red)
-                    const endMarker = L.marker([lastCoord.lat, lastCoord.lon], {
-                        draggable: true,
-                        icon: L.divIcon({
-                            className: 'vertex-marker',
-                            html: '<div style="width: 16px; height: 16px; background: #F44336; border: 3px solid white; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>',
-                            iconSize: [16, 16]
-                        })
-                    }).addTo(map);
-
-                    endMarker.on('dragend', async () => {
-                        const latlng = endMarker.getLatLng();
-                        if (!tempRouteData) {
-                            tempRouteData = {
-                                start: { lat: firstCoord.lat, lon: firstCoord.lon },
-                                end: { lat: latlng.lat, lon: latlng.lng },
-                                waypoints: route.waypoints || [],
-                                startMarker: null,
-                                endMarker: endMarker
-                            };
-                        } else {
-                            tempRouteData.end = { lat: latlng.lat, lon: latlng.lng };
-                            tempRouteData.endMarker = endMarker;
-                        }
-                        await recalculateRoutingRoute();
-                    });
-
-                    // Right-click for context menu
-                    endMarker.on('contextmenu', (e) => {
-                        L.DomEvent.stopPropagation(e);
-                        const pixel = map.latLngToContainerPoint(e.latlng);
-                        showContextMenu(pixel.x, pixel.y, { type: 'end' });
-                    });
-
-                    markers.push(startMarker, endMarker);
-                    
-                    // Store markers in tempRouteData
-                    if (tempRouteData) {
-                        tempRouteData.startMarker = startMarker;
-                        tempRouteData.endMarker = endMarker;
-                    }
-
-                    // Waypoint markers (yellow)
-                    const waypoints = route.waypoints || [];
-                    waypoints.forEach((wp, index) => {
-                        const wpMarker = L.marker([wp.lat, wp.lon], {
-                            draggable: true,
-                            icon: L.divIcon({
-                                className: 'vertex-marker',
-                                html: '<div style="width: 14px; height: 14px; background: #FFC107; border: 3px solid white; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>',
-                                iconSize: [14, 14]
-                            })
-                        }).addTo(map);
-
-                        wpMarker.on('dragend', async () => {
-                            const latlng = wpMarker.getLatLng();
-                            if (!tempRouteData) {
-                                tempRouteData = {
-                                    start: { lat: firstCoord.lat, lon: firstCoord.lon },
-                                    end: { lat: lastCoord.lat, lon: lastCoord.lon },
-                                    waypoints: waypoints.map(w => ({ ...w }))
-                                };
-                            }
-                            tempRouteData.waypoints[index] = { lat: latlng.lat, lon: latlng.lng };
-                            await recalculateRoutingRoute();
-                        });
-
-                        // Right-click for context menu
-                        wpMarker.on('contextmenu', (e) => {
-                            L.DomEvent.stopPropagation(e);
-                            const pixel = map.latLngToContainerPoint(e.latlng);
-                            showContextMenu(pixel.x, pixel.y, { type: 'waypoint', index: index });
-                        });
-
-                        markers.push(wpMarker);
-                    });
-
-                    // Add midpoint markers for creating new waypoints
-                    // Use actual geometry points instead of geometric midpoints
-                    // Divide route into segments based on waypoints
-                    const allPoints = [firstCoord, ...waypoints, lastCoord];
-                    
-                    // For each segment, find the middle point from actual route geometry
-                    for (let i = 0; i < allPoints.length - 1; i++) {
-                        const segmentStart = allPoints[i];
-                        const segmentEnd = allPoints[i + 1];
-                        
-                        // Find indices in coordinates array that are closest to segment start and end
-                        let startIdx = 0;
-                        let endIdx = route.coordinates.length - 1;
-                        
-                        if (i === 0) {
-                            startIdx = 0;
-                        } else {
-                            // Find closest point to this waypoint
-                            let minDist = Infinity;
-                            for (let j = 0; j < route.coordinates.length; j++) {
-                                const dist = Math.sqrt(
-                                    Math.pow(route.coordinates[j].lat - segmentStart.lat, 2) +
-                                    Math.pow(route.coordinates[j].lon - segmentStart.lon, 2)
-                                );
-                                if (dist < minDist) {
-                                    minDist = dist;
-                                    startIdx = j;
-                                }
-                            }
-                        }
-                        
-                        if (i === allPoints.length - 2) {
-                            endIdx = route.coordinates.length - 1;
-                        } else {
-                            // Find closest point to next waypoint
-                            let minDist = Infinity;
-                            for (let j = startIdx; j < route.coordinates.length; j++) {
-                                const dist = Math.sqrt(
-                                    Math.pow(route.coordinates[j].lat - segmentEnd.lat, 2) +
-                                    Math.pow(route.coordinates[j].lon - segmentEnd.lon, 2)
-                                );
-                                if (dist < minDist) {
-                                    minDist = dist;
-                                    endIdx = j;
-                                }
-                            }
-                        }
-                        
-                        // Get middle point from this segment of actual geometry
-                        const midIdx = Math.floor((startIdx + endIdx) / 2);
-                        const midPoint = route.coordinates[midIdx];
-
-                        const midMarker = L.marker([midPoint.lat, midPoint.lon], {
-                            icon: L.divIcon({
-                                className: 'midpoint-marker',
-                                html: '<div style="width: 10px; height: 10px; background: rgba(255,193,7,0.8); border: 2px solid white; border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,0.3);"></div>',
-                                iconSize: [10, 10]
-                            }),
-                            opacity: 0.7
-                        }).addTo(map);
-
-                        midMarker.on('click', async () => {
-                            // Check if we haven't exceeded 15 waypoints limit
-                            const currentWaypoints = route.waypoints || [];
-                            if (currentWaypoints.length >= 15) {
-                                alert('Maximální počet průjezdních bodů je 15');
-                                return;
-                            }
-
-                            // Insert new waypoint at the middle point of actual geometry
-                            const newWaypoint = { lat: midPoint.lat, lon: midPoint.lon };
-                            const updatedWaypoints = [...currentWaypoints];
-                            updatedWaypoints.splice(i, 0, newWaypoint);
-                            
-                            route.waypoints = updatedWaypoints;
-                            
-                            if (!tempRouteData) {
-                                tempRouteData = {
-                                    start: { lat: firstCoord.lat, lon: firstCoord.lon },
-                                    end: { lat: lastCoord.lat, lon: lastCoord.lon },
-                                    waypoints: updatedWaypoints
-                                };
-                            } else {
-                                tempRouteData.waypoints = updatedWaypoints;
-                            }
-                            
-                            await recalculateRoutingRoute();
-                        });
-
-                        markers.push(midMarker);
-                    }
-                } else {
-                    // Manual mode - show all vertex markers
-                    // First point = green (start), last point = red (end), middle points = yellow (waypoints)
-                    route.coordinates.forEach((coord, index) => {
-                        const isFirst = index === 0;
-                        const isLast = index === route.coordinates.length - 1;
-                        const isMiddle = !isFirst && !isLast;
-                        
-                        let markerColor, markerSize;
-                        if (isFirst) {
-                            // Start marker - green
-                            markerColor = '#4CAF50';
-                            markerSize = 16;
-                        } else if (isLast) {
-                            // End marker - red
-                            markerColor = '#F44336';
-                            markerSize = 16;
-                        } else {
-                            // Middle points - yellow
-                            markerColor = '#FFC107';
-                            markerSize = 14;
-                        }
-                        
-                        const marker = L.marker([coord.lat, coord.lon], {
-                            draggable: true,
-                            icon: L.divIcon({
-                                className: 'vertex-marker',
-                                html: '<div style="width: ' + markerSize + 'px; height: ' + markerSize + 'px; background: ' + markerColor + '; border: 3px solid white; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>',
-                                iconSize: [markerSize, markerSize]
-                            })
-                        }).addTo(map);
-
-                        marker.on('dragend', () => {
-                            const latlng = marker.getLatLng();
-                            route.coordinates[index] = { lat: latlng.lat, lon: latlng.lng };
-                            renderRoute(route, true);
-                        });
-
-                        // Right-click for context menu
-                        marker.on('contextmenu', (e) => {
-                            L.DomEvent.stopPropagation(e);
-                            const pixel = map.latLngToContainerPoint(e.latlng);
-                            showContextMenu(pixel.x, pixel.y, { type: 'manual', index: index });
-                        });
-
-                        markers.push(marker);
-                    });
-
-                    // Add midpoint markers for adding new vertices (only in manual mode)
-                    for (let i = 0; i < route.coordinates.length - 1; i++) {
-                        const c1 = route.coordinates[i];
-                        const c2 = route.coordinates[i + 1];
-                        const midLat = (c1.lat + c2.lat) / 2;
-                        const midLon = (c1.lon + c2.lon) / 2;
-
-                        const midMarker = L.marker([midLat, midLon], {
-                            icon: L.divIcon({
-                                className: 'midpoint-marker',
-                                html: '<div style="width: 10px; height: 10px; background: rgba(255,193,7,0.8); border: 2px solid white; border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,0.3);"></div>',
-                                iconSize: [10, 10]
-                            }),
-                            opacity: 0.7
-                        }).addTo(map);
-
-                        midMarker.on('click', () => {
-                            // Insert new point at this position
-                            route.coordinates.splice(i + 1, 0, { lat: midLat, lon: midLon });
-                            renderRoute(route, true);
-                        });
-
-                        markers.push(midMarker);
-                    }
-                }
-            }
-
-            routeLayers[route.id] = { line, markers };
-        }
-
-        function renderAllRoutes() {
-            routes.forEach(route => {
-                const isActive = route.id === activeRouteId;
-                renderRoute(route, isActive);
-            });
+            route.waypoints[index].mode = newMode;
+            await recalculateRouteGeometry(route);
+            renderRoute(route, true);
+            updateUI();
         }
 
         // ======================
         // ROUTE MANAGEMENT
         // ======================
-        function createRoute(coordinates = [], name = '', color = 'red', routeMode = 'manual', waypoints = []) {
+        function createRoute(name = 'Nová trasa', color = 'red') {
             const route = {
                 id: nextRouteId++,
                 name,
                 color,
-                coordinates,
-                routeMode, // 'manual' or 'routing'
-                waypoints // Array of waypoint coordinates (only for routing mode): [{lat, lon}, ...]
+                waypoints: [],
+                segments: []
             };
             routes.push(route);
             return route;
@@ -1584,72 +2073,28 @@
         function activateRouteWithBestFit(routeId) {
             activateRoute(routeId);
             
-            // Perform best fit on the route
             const route = routes.find(r => r.id === routeId);
-            if (route && route.coordinates.length > 0) {
-                const latLngs = route.coordinates.map(c => [c.lat, c.lon]);
+            if (route && route.waypoints.length > 0) {
+                const latLngs = route.waypoints.map(wp => [wp.lat, wp.lon]);
                 const bounds = L.latLngBounds(latLngs);
                 map.fitBounds(bounds, { padding: [50, 50] });
             }
         }
 
         function activateRoute(routeId) {
-            if (mode !== 'none') {
-                // Don't allow activating another route while editing
-                return;
-            }
+            if (isEditing) return;
             
             const previousActiveId = activeRouteId;
             activeRouteId = routeId;
-            const route = routes.find(r => r.id === routeId);
+            isEditing = true;
             
+            const route = routes.find(r => r.id === routeId);
             if (route) {
-                // Create backup of route before editing (deep copy)
-                routeBackup = {
-                    id: route.id,
-                    name: route.name,
-                    color: route.color,
-                    routeMode: route.routeMode,
-                    coordinates: route.coordinates.map(c => ({ lat: c.lat, lon: c.lon })),
-                    waypoints: route.waypoints ? route.waypoints.map(w => ({ lat: w.lat, lon: w.lon })) : []
-                };
-                
-                // Clean up old temporary markers before setting new mode
-                if (tempRouteData) {
-                    if (tempRouteData.startMarker) {
-                        map.removeLayer(tempRouteData.startMarker);
-                    }
-                    if (tempRouteData.endMarker) {
-                        map.removeLayer(tempRouteData.endMarker);
-                    }
-                    if (tempRouteData.waypointMarkers) {
-                        tempRouteData.waypointMarkers.forEach(m => map.removeLayer(m));
-                    }
-                }
-                
-                if (route.routeMode === 'routing') {
-                    mode = 'editing-routing';
-                    // Always initialize tempRouteData for routing mode if we have at least 2 points
-                    // First and last coordinates are always start and end, waypoints are in between
-                    if (route.coordinates.length >= 2) {
-                        const firstCoord = route.coordinates[0];
-                        const lastCoord = route.coordinates[route.coordinates.length - 1];
-                        tempRouteData = {
-                            start: { lat: firstCoord.lat, lon: firstCoord.lon },
-                            end: { lat: lastCoord.lat, lon: lastCoord.lon },
-                            waypoints: route.waypoints ? route.waypoints.map(w => ({ lat: w.lat, lon: w.lon })) : [],
-                            startMarker: null,
-                            endMarker: null,
-                            waypointMarkers: []
-                        };
-                    }
-                } else {
-                    mode = 'editing-manual';
-                }
+                // Create backup
+                routeBackup = JSON.parse(JSON.stringify(route));
             }
             
-            // Optimized: Only re-render affected routes instead of all routes
-            // Re-render previous active route (if any) as inactive
+            // Re-render affected routes
             if (previousActiveId && previousActiveId !== routeId) {
                 const prevRoute = routes.find(r => r.id === previousActiveId);
                 if (prevRoute) {
@@ -1657,7 +2102,6 @@
                 }
             }
             
-            // Re-render new active route
             if (route) {
                 renderRoute(route, true);
             }
@@ -1668,11 +2112,12 @@
         function deactivateRoute() {
             const previousActiveId = activeRouteId;
             activeRouteId = null;
-            mode = 'none';
-            tempRouteData = null;
-            routeBackup = null; // Clear backup
+            isEditing = false;
+            routeBackup = null;
             
-            // Optimized: Only re-render the previously active route
+            // Hide hover marker
+            hideHoverMarker();
+            
             if (previousActiveId) {
                 const prevRoute = routes.find(r => r.id === previousActiveId);
                 if (prevRoute) {
@@ -1684,32 +2129,37 @@
         }
 
         function cancelRouteEditing() {
-            if (mode === 'editing-manual' || mode === 'editing-routing') {
-                const route = routes.find(r => r.id === activeRouteId);
-                // If route is empty/incomplete, delete it
-                if (route && route.coordinates.length < 2) {
-                    deleteRoute(activeRouteId);
-                } else if (routeBackup && activeRouteId) {
-                    // Restore route from backup
-                    if (route) {
-                        route.name = routeBackup.name;
-                        route.color = routeBackup.color;
-                        route.routeMode = routeBackup.routeMode;
-                        route.coordinates = routeBackup.coordinates.map(c => ({ lat: c.lat, lon: c.lon }));
-                        route.waypoints = routeBackup.waypoints ? routeBackup.waypoints.map(w => ({ lat: w.lat, lon: w.lon })) : [];
-                    }
-                }
+            const route = routes.find(r => r.id === activeRouteId);
+            if (!route) {
                 deactivateRoute();
+                return;
             }
             
-            // Clean up routing markers
-            if (tempRouteData) {
-                if (tempRouteData.startMarker) map.removeLayer(tempRouteData.startMarker);
-                if (tempRouteData.endMarker) map.removeLayer(tempRouteData.endMarker);
-                if (tempRouteData.waypointMarkers) {
-                    tempRouteData.waypointMarkers.forEach(m => map.removeLayer(m));
-                }
+            // Check if this is a new route (backup had no waypoints)
+            const isNewRoute = !routeBackup || routeBackup.waypoints.length < 2;
+            
+            // Check if there are any changes to cancel
+            const hasChanges = route.waypoints.length > 0 || 
+                route.name !== (routeBackup?.name || 'Nová trasa') ||
+                route.color !== (routeBackup?.color || 'red');
+            
+            if (hasChanges && !confirm('Opravdu zrušit změny provedené v trase?')) {
+                return;
             }
+            
+            if (isNewRoute) {
+                // New route - delete it completely
+                deleteRoute(activeRouteId);
+            } else if (routeBackup && activeRouteId) {
+                // Existing route - restore from backup
+                route.name = routeBackup.name;
+                route.color = routeBackup.color;
+                route.waypoints = routeBackup.waypoints;
+                route.segments = routeBackup.segments;
+                renderRoute(route, false);
+            }
+            
+            deactivateRoute();
         }
 
         function deleteRoute(routeId) {
@@ -1717,96 +2167,151 @@
             if (index !== -1) {
                 routes.splice(index, 1);
                 if (routeLayers[routeId]) {
-                    if (routeLayers[routeId].line) map.removeLayer(routeLayers[routeId].line);
+                    if (routeLayers[routeId].lines) {
+                        routeLayers[routeId].lines.forEach(l => map.removeLayer(l));
+                    }
                     if (routeLayers[routeId].markers) {
                         routeLayers[routeId].markers.forEach(m => map.removeLayer(m));
                     }
                     delete routeLayers[routeId];
                 }
                 if (activeRouteId === routeId) {
-                    deactivateRoute();
+                    activeRouteId = null;
+                    isEditing = false;
                 }
                 updateUI();
             }
         }
 
         // ======================
-        // ROUTING API
+        // MAP INTERACTIONS
         // ======================
-        async function calculateRoute(start, end, waypoints = []) {
-            showLoading();
-            try {
-                const url = new URL('https://api.mapy.com/v1/routing/route');
-                url.searchParams.set('apikey', API_KEY);
-                url.searchParams.set('start', `${start.lon},${start.lat}`);
-                url.searchParams.set('end', `${end.lon},${end.lat}`);
-                url.searchParams.set('routeType', ROUTE_TYPE);
-                url.searchParams.set('format', 'geojson');
-
-                // Add waypoints if present (max 15)
-                if (waypoints && waypoints.length > 0) {
-                    const limitedWaypoints = waypoints.slice(0, 15); // API supports max 15 waypoints
-                    limitedWaypoints.forEach(wp => {
-                        url.searchParams.append('waypoints', `${wp.lon},${wp.lat}`);
-                    });
-                }
-
-                const response = await fetch(url.toString());
-                if (!response.ok) {
-                    throw new Error('Nepodařilo se naplánovat trasu');
-                }
-
-                const data = await response.json();
-                
-                // Extract coordinates from GeoJSON
-                const coords = data.geometry.geometry.coordinates.map(c => ({
-                    lon: c[0],
-                    lat: c[1]
-                }));
-
-                return coords;
-            } catch (error) {
-                alert('Chyba při plánování trasy: ' + error.message);
-                return null;
-            } finally {
-                hideLoading();
+        map.on('contextmenu', (e) => {
+            L.DomEvent.stopPropagation(e);
+            L.DomEvent.preventDefault(e);
+        });
+        
+        map.on('mousemove', (e) => {
+            // Handle hover marker for midpoint insertion
+            updateHoverMarkerPosition(e.latlng);
+        });
+        
+        map.on('click', async (e) => {
+            if (!isEditing || !activeRouteId) return;
+            
+            const route = routes.find(r => r.id === activeRouteId);
+            if (!route) return;
+            
+            const clickedLat = e.latlng.lat;
+            const clickedLon = e.latlng.lng;
+            
+            if (route.waypoints.length === 0) {
+                // Add start point (no modifier needed)
+                route.waypoints.push({
+                    lat: clickedLat,
+                    lon: clickedLon,
+                    mode: 'start'
+                });
+                renderRoute(route, true);
+                updateUI();
+            } else if (ctrlPressed) {
+                // Add routing waypoint
+                route.waypoints.push({
+                    lat: clickedLat,
+                    lon: clickedLon,
+                    mode: 'routing'
+                });
+                await smartRecalculate(route, { operation: 'append', waypointIndex: route.waypoints.length - 1 });
+                renderRoute(route, true);
+                updateUI();
+            } else if (altPressed) {
+                // Add manual waypoint
+                route.waypoints.push({
+                    lat: clickedLat,
+                    lon: clickedLon,
+                    mode: 'manual'
+                });
+                await smartRecalculate(route, { operation: 'append', waypointIndex: route.waypoints.length - 1 });
+                renderRoute(route, true);
+                updateUI();
             }
-        }
+        });
 
         // ======================
         // GPX IMPORT/EXPORT
         // ======================
+        function escapeXml(text) {
+            return text.replace(/&/g, '&amp;')
+                       .replace(/</g, '&lt;')
+                       .replace(/>/g, '&gt;')
+                       .replace(/"/g, '&quot;')
+                       .replace(/'/g, '&apos;');
+        }
+
         function exportGPX() {
-            if (routes.length === 0) {
+            // Filter routes with at least 2 waypoints
+            const validRoutes = routes.filter(r => r.waypoints && r.waypoints.length >= 2);
+            
+            if (validRoutes.length === 0) {
                 alert('Žádné trasy k exportu');
                 return;
             }
 
             let gpx = '<?xml version="1.0" encoding="UTF-8"?>\n';
-            gpx += '<gpx version="1.1" creator="MapyEditor" xmlns="http://www.topografix.com/GPX/1/1" xmlns:gpxx="http://www.garmin.com/xmlschemas/GpxExtensions/v3">\n';
+            gpx += '<gpx version="1.1" creator="MapyEditorBeta" xmlns="http://www.topografix.com/GPX/1/1" xmlns:gpxx="http://www.garmin.com/xmlschemas/GpxExtensions/v3">\n';
 
-            routes.forEach(route => {
+            validRoutes.forEach(route => {
                 gpx += '  <trk>\n';
                 gpx += `    <name>${escapeXml(route.name || 'Trasa ' + route.id)}</name>\n`;
                 gpx += '    <extensions>\n';
                 gpx += `      <gpxx:DisplayColor>${route.color}</gpxx:DisplayColor>\n`;
-                gpx += `      <gpxx:RouteMode>${route.routeMode || 'manual'}</gpxx:RouteMode>\n`;
+                gpx += '    </extensions>\n';
                 
-                // Save waypoints for routing mode
-                if (route.routeMode === 'routing' && route.waypoints && route.waypoints.length > 0) {
-                    gpx += '      <gpxx:Waypoints>\n';
+                // Export each segment as a trkseg
+                if (route.segments && route.segments.length > 0) {
+                    for (let segIdx = 0; segIdx < route.segments.length; segIdx++) {
+                        const segment = route.segments[segIdx];
+                        gpx += '    <trkseg>\n';
+                        gpx += '      <extensions>\n';
+                        gpx += `        <gpxx:SegmentMode>${segment.mode}</gpxx:SegmentMode>\n`;
+                        
+                        if (segment.mode === 'routing') {
+                            // Save start, end, and waypoints for routing segments
+                            const startWp = route.waypoints[segment.startIndex];
+                            const endWp = route.waypoints[segment.endIndex];
+                            gpx += `        <gpxx:StartPoint lat="${startWp.lat}" lon="${startWp.lon}"/>\n`;
+                            gpx += `        <gpxx:EndPoint lat="${endWp.lat}" lon="${endWp.lon}"/>\n`;
+                            
+                            // Middle waypoints
+                            if (segment.waypointIndices.length > 2) {
+                                gpx += '        <gpxx:Waypoints>\n';
+                                for (let i = 1; i < segment.waypointIndices.length - 1; i++) {
+                                    const wp = route.waypoints[segment.waypointIndices[i]];
+                                    gpx += `          <gpxx:Waypoint lat="${wp.lat}" lon="${wp.lon}"/>\n`;
+                                }
+                                gpx += '        </gpxx:Waypoints>\n';
+                            }
+                        }
+                        // Note: StartsFromPreviousGeometry is auto-detected on import based on previous segment type
+                        
+                        gpx += '      </extensions>\n';
+                        
+                        // Geometry points
+                        segment.geometry.forEach(coord => {
+                            gpx += `      <trkpt lat="${coord.lat}" lon="${coord.lon}"></trkpt>\n`;
+                        });
+                        
+                        gpx += '    </trkseg>\n';
+                    }
+                } else if (route.waypoints.length > 0) {
+                    // Fallback: single segment with all waypoints
+                    gpx += '    <trkseg>\n';
                     route.waypoints.forEach(wp => {
-                        gpx += `        <gpxx:Waypoint lat="${wp.lat}" lon="${wp.lon}" />\n`;
+                        gpx += `      <trkpt lat="${wp.lat}" lon="${wp.lon}"></trkpt>\n`;
                     });
-                    gpx += '      </gpxx:Waypoints>\n';
+                    gpx += '    </trkseg>\n';
                 }
                 
-                gpx += '    </extensions>\n';
-                gpx += '    <trkseg>\n';
-                route.coordinates.forEach(coord => {
-                    gpx += `      <trkpt lat="${coord.lat}" lon="${coord.lon}"></trkpt>\n`;
-                });
-                gpx += '    </trkseg>\n';
                 gpx += '  </trk>\n';
             });
 
@@ -1814,18 +2319,15 @@
 
             const blob = new Blob([gpx], { type: 'application/gpx+xml' });
             
-            // Try to use File System Access API for modern browsers
             if ('showSaveFilePicker' in window) {
                 saveFileModern(blob);
             } else {
-                // Fallback to traditional download
                 saveFileFallback(blob);
             }
         }
 
         async function saveFileModern(blob) {
             try {
-                // Generate filename with date and time
                 const now = new Date();
                 const year = now.getFullYear().toString().slice(-2);
                 const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -1848,15 +2350,13 @@
                 await writable.close();
             } catch (err) {
                 if (err.name !== 'AbortError') {
-                    console.error('Chyba při ukládání:', err);
-                    // Fallback to download
+                    console.error('Save error:', err);
                     saveFileFallback(blob);
                 }
             }
         }
 
         function saveFileFallback(blob) {
-            // Generate filename with date and time
             const now = new Date();
             const year = now.getFullYear().toString().slice(-2);
             const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -1873,222 +2373,366 @@
             URL.revokeObjectURL(url);
         }
 
-        function escapeXml(text) {
-            return text.replace(/&/g, '&amp;')
-                       .replace(/</g, '&lt;')
-                       .replace(/>/g, '&gt;')
-                       .replace(/"/g, '&quot;')
-                       .replace(/'/g, '&apos;');
-        }
+        async function importGPX(file) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    const parser = new DOMParser();
+                    const xmlDoc = parser.parseFromString(e.target.result, 'text/xml');
+                    const tracks = xmlDoc.getElementsByTagName('trk');
 
-        function importGPX(file) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const parser = new DOMParser();
-                const xmlDoc = parser.parseFromString(e.target.result, 'text/xml');
-                const tracks = xmlDoc.getElementsByTagName('trk');
-
-                if (tracks.length === 0) {
-                    return; // Silently skip files without tracks
-                }
-
-                Array.from(tracks).forEach(trk => {
-                    const nameEl = trk.getElementsByTagName('name')[0];
-                    const name = nameEl ? nameEl.textContent : '';
-                    
-                    // Try to read color, routeMode, and waypoints from extensions
-                    let color = 'red'; // default
-                    let routeMode = 'manual'; // default
-                    let waypoints = [];
-                    
-                    const extensions = trk.getElementsByTagName('extensions')[0];
-                    if (extensions) {
-                        const displayColorEl = extensions.getElementsByTagName('gpxx:DisplayColor')[0] || 
-                                               extensions.getElementsByTagName('DisplayColor')[0];
-                        if (displayColorEl) {
-                            const colorValue = displayColorEl.textContent.toLowerCase();
-                            if (colorValue === 'red' || colorValue === 'blue' || colorValue === 'green') {
-                                color = colorValue;
+                    for (const trk of Array.from(tracks)) {
+                        const nameEl = trk.getElementsByTagName('name')[0];
+                        const name = nameEl ? nameEl.textContent : file.name.replace('.gpx', '');
+                        
+                        let color = 'red';
+                        let oldRouteMode = null;
+                        let oldWaypoints = [];
+                        
+                        // Check for extensions at trk level
+                        const trkExtensions = trk.getElementsByTagName('extensions')[0];
+                        if (trkExtensions) {
+                            const displayColorEl = trkExtensions.getElementsByTagName('gpxx:DisplayColor')[0] || 
+                                                   trkExtensions.getElementsByTagName('DisplayColor')[0];
+                            if (displayColorEl) {
+                                const colorValue = displayColorEl.textContent.toLowerCase();
+                                if (['red', 'blue', 'green'].includes(colorValue)) {
+                                    color = colorValue;
+                                }
+                            }
+                            
+                            // Check for old format RouteMode
+                            const routeModeEl = trkExtensions.getElementsByTagName('gpxx:RouteMode')[0] || 
+                                               trkExtensions.getElementsByTagName('RouteMode')[0];
+                            if (routeModeEl) {
+                                oldRouteMode = routeModeEl.textContent.toLowerCase();
+                            }
+                            
+                            // Check for old format Waypoints
+                            const waypointsEl = trkExtensions.getElementsByTagName('gpxx:Waypoints')[0] || 
+                                               trkExtensions.getElementsByTagName('Waypoints')[0];
+                            if (waypointsEl) {
+                                const wpEls = waypointsEl.getElementsByTagName('gpxx:Waypoint');
+                                const wpEls2 = waypointsEl.getElementsByTagName('Waypoint');
+                                const wpArray = wpEls.length > 0 ? wpEls : wpEls2;
+                                oldWaypoints = Array.from(wpArray).map(wpEl => ({
+                                    lat: parseFloat(wpEl.getAttribute('lat')),
+                                    lon: parseFloat(wpEl.getAttribute('lon'))
+                                }));
                             }
                         }
                         
-                        const routeModeEl = extensions.getElementsByTagName('gpxx:RouteMode')[0] || 
-                                           extensions.getElementsByTagName('RouteMode')[0];
-                        if (routeModeEl) {
-                            const modeValue = routeModeEl.textContent.toLowerCase();
-                            if (modeValue === 'routing' || modeValue === 'manual') {
-                                routeMode = modeValue;
+                        const trksegs = trk.getElementsByTagName('trkseg');
+                        const waypoints = [];
+                        
+                        // Check if new format (trkseg has extensions with SegmentMode)
+                        let isNewFormat = false;
+                        if (trksegs.length > 0) {
+                            const firstTrkseg = trksegs[0];
+                            const segExt = firstTrkseg.getElementsByTagName('extensions')[0];
+                            if (segExt) {
+                                const segModeEl = segExt.getElementsByTagName('gpxx:SegmentMode')[0] || 
+                                                 segExt.getElementsByTagName('SegmentMode')[0];
+                                if (segModeEl) {
+                                    isNewFormat = true;
+                                }
                             }
                         }
                         
-                        // Read waypoints
-                        const waypointsEl = extensions.getElementsByTagName('gpxx:Waypoints')[0] || 
-                                           extensions.getElementsByTagName('Waypoints')[0];
-                        if (waypointsEl) {
-                            const waypointEls = waypointsEl.getElementsByTagName('gpxx:Waypoint');
-                            if (waypointEls.length === 0) {
-                                // Try without namespace
-                                const waypointEls2 = waypointsEl.getElementsByTagName('Waypoint');
-                                Array.from(waypointEls2).forEach(wpEl => {
-                                    waypoints.push({
-                                        lat: parseFloat(wpEl.getAttribute('lat')),
-                                        lon: parseFloat(wpEl.getAttribute('lon'))
-                                    });
-                                });
-                            } else {
-                                Array.from(waypointEls).forEach(wpEl => {
-                                    waypoints.push({
-                                        lat: parseFloat(wpEl.getAttribute('lat')),
-                                        lon: parseFloat(wpEl.getAttribute('lon'))
-                                    });
-                                });
-                            }
-                        }
-                    }
-                    
-                    const trkpts = trk.getElementsByTagName('trkpt');
-                    const coordinates = Array.from(trkpts).map(pt => ({
-                        lat: parseFloat(pt.getAttribute('lat')),
-                        lon: parseFloat(pt.getAttribute('lon'))
-                    }));
-
-                    if (coordinates.length > 0) {
-                        createRoute(coordinates, name, color, routeMode, waypoints);
-                    }
-                });
-
-                renderAllRoutes();
-                updateUI();
-                updateRoutesList();
-                
-                // Fit bounds to all routes
-                fitBoundsToRoutes();
-            };
-            reader.readAsText(file);
-        }
-
-        function importMultipleGPX(files) {
-            const dropzoneContent = document.querySelector('.dropzone-content');
-            const dropzoneLoading = document.getElementById('dropzone-loading');
-            
-            // Show loading
-            dropzoneContent.style.display = 'none';
-            dropzoneLoading.style.display = 'flex';
-            
-            let processed = 0;
-            const totalFiles = files.length;
-            
-            Array.from(files).forEach((file, index) => {
-                if (file.name.toLowerCase().endsWith('.gpx')) {
-                    const reader = new FileReader();
-                    reader.onload = (e) => {
-                        const parser = new DOMParser();
-                        const xmlDoc = parser.parseFromString(e.target.result, 'text/xml');
-                        const tracks = xmlDoc.getElementsByTagName('trk');
-
-                        Array.from(tracks).forEach(trk => {
-                            const nameEl = trk.getElementsByTagName('name')[0];
-                            const name = nameEl ? nameEl.textContent : file.name.replace('.gpx', '');
+                        if (isNewFormat) {
+                            // New format: read segments with geometry from trkpt (no API calls needed!)
+                            // 
+                            // IMPORTANT: At segment boundaries, waypoints are SHARED between segments.
+                            // The boundary waypoint's MODE is determined by the PREVIOUS segment.
+                            // Example: routing→manual transition: boundary wp has mode 'routing'
+                            //          manual→routing transition: boundary wp has mode 'manual'
                             
-                            let color = 'red';
-                            let routeMode = 'manual';
-                            let waypoints = [];
+                            const importedSegments = [];
                             
-                            const extensions = trk.getElementsByTagName('extensions')[0];
-                            if (extensions) {
-                                const displayColorEl = extensions.getElementsByTagName('gpxx:DisplayColor')[0] || 
-                                                       extensions.getElementsByTagName('DisplayColor')[0];
-                                if (displayColorEl) {
-                                    const colorValue = displayColorEl.textContent.toLowerCase();
-                                    if (colorValue === 'red' || colorValue === 'blue' || colorValue === 'green') {
-                                        color = colorValue;
+                            for (let segIdx = 0; segIdx < trksegs.length; segIdx++) {
+                                const trkseg = trksegs[segIdx];
+                                const segExt = trkseg.getElementsByTagName('extensions')[0];
+                                
+                                let segMode = 'manual';
+                                let startPoint = null;
+                                let endPoint = null;
+                                let segWaypoints = [];
+                                
+                                if (segExt) {
+                                    const segModeEl = segExt.getElementsByTagName('gpxx:SegmentMode')[0] || 
+                                                     segExt.getElementsByTagName('SegmentMode')[0];
+                                    if (segModeEl) {
+                                        segMode = segModeEl.textContent.toLowerCase();
+                                    }
+                                    
+                                    const startEl = segExt.getElementsByTagName('gpxx:StartPoint')[0] || 
+                                                   segExt.getElementsByTagName('StartPoint')[0];
+                                    if (startEl) {
+                                        startPoint = {
+                                            lat: parseFloat(startEl.getAttribute('lat')),
+                                            lon: parseFloat(startEl.getAttribute('lon'))
+                                        };
+                                    }
+                                    
+                                    const endEl = segExt.getElementsByTagName('gpxx:EndPoint')[0] || 
+                                                 segExt.getElementsByTagName('EndPoint')[0];
+                                    if (endEl) {
+                                        endPoint = {
+                                            lat: parseFloat(endEl.getAttribute('lat')),
+                                            lon: parseFloat(endEl.getAttribute('lon'))
+                                        };
+                                    }
+                                    
+                                    const wpContainer = segExt.getElementsByTagName('gpxx:Waypoints')[0] || 
+                                                       segExt.getElementsByTagName('Waypoints')[0];
+                                    if (wpContainer) {
+                                        const wpEls = wpContainer.getElementsByTagName('gpxx:Waypoint');
+                                        const wpEls2 = wpContainer.getElementsByTagName('Waypoint');
+                                        const wpArray = wpEls.length > 0 ? wpEls : wpEls2;
+                                        segWaypoints = Array.from(wpArray).map(el => ({
+                                            lat: parseFloat(el.getAttribute('lat')),
+                                            lon: parseFloat(el.getAttribute('lon'))
+                                        }));
                                     }
                                 }
                                 
-                                const routeModeEl = extensions.getElementsByTagName('gpxx:RouteMode')[0] || 
-                                                   extensions.getElementsByTagName('RouteMode')[0];
-                                if (routeModeEl) {
-                                    const modeValue = routeModeEl.textContent.toLowerCase();
-                                    if (modeValue === 'routing' || modeValue === 'manual') {
-                                        routeMode = modeValue;
+                                // Read geometry from trkpt
+                                const trkpts = trkseg.getElementsByTagName('trkpt');
+                                const geometry = Array.from(trkpts).map(pt => ({
+                                    lat: parseFloat(pt.getAttribute('lat')),
+                                    lon: parseFloat(pt.getAttribute('lon'))
+                                }));
+                                
+                                // Determine the previous segment info
+                                const prevSeg = importedSegments.length > 0 ? importedSegments[importedSegments.length - 1] : null;
+                                const boundaryWpIndex = prevSeg ? prevSeg.endIndex : -1;
+                                
+                                // Build waypoints for this segment
+                                // Key insight: boundary waypoint is SHARED and already exists from previous segment
+                                
+                                if (segMode === 'routing') {
+                                    // Routing segment: waypoints come from metadata (StartPoint, Waypoints, EndPoint)
+                                    
+                                    if (segIdx === 0) {
+                                        // First segment: add startPoint
+                                        if (startPoint) {
+                                            waypoints.push({ ...startPoint, mode: 'start' });
+                                        }
                                     }
+                                    // For subsequent segments: startPoint = boundary waypoint, already exists
+                                    // Don't add it again!
+                                    
+                                    // Add middle waypoints
+                                    segWaypoints.forEach(wp => {
+                                        waypoints.push({ ...wp, mode: 'routing' });
+                                    });
+                                    
+                                    // Add endPoint
+                                    if (endPoint) {
+                                        waypoints.push({ ...endPoint, mode: 'routing' });
+                                    }
+                                } else {
+                                    // Manual segment: waypoints come from trkpt (geometry points)
+                                    // But geometry may start with previousGeometryEnd which is NOT a waypoint
+                                    
+                                    // Check if this manual segment starts from previous geometry end
+                                    const startsFromPrevGeom = prevSeg && prevSeg.mode === 'routing';
+                                    
+                                    Array.from(trkpts).forEach((pt, ptIdx) => {
+                                        // Skip first trkpt if it's previousGeometryEnd (not a waypoint)
+                                        if (ptIdx === 0 && startsFromPrevGeom) {
+                                            return;
+                                        }
+                                        
+                                        const lat = parseFloat(pt.getAttribute('lat'));
+                                        const lon = parseFloat(pt.getAttribute('lon'));
+                                        
+                                        // For subsequent segments, first actual waypoint is the boundary
+                                        // Skip if it matches the boundary waypoint (already exists)
+                                        if (boundaryWpIndex >= 0) {
+                                            const boundaryWp = waypoints[boundaryWpIndex];
+                                            if (boundaryWp && 
+                                                Math.abs(boundaryWp.lat - lat) < 0.000001 && 
+                                                Math.abs(boundaryWp.lon - lon) < 0.000001) {
+                                                return; // Skip - this is the shared boundary waypoint
+                                            }
+                                        }
+                                        
+                                        if (waypoints.length === 0) {
+                                            waypoints.push({ lat, lon, mode: 'start' });
+                                        } else {
+                                            waypoints.push({ lat, lon, mode: 'manual' });
+                                        }
+                                    });
                                 }
                                 
-                                const waypointsEl = extensions.getElementsByTagName('gpxx:Waypoints')[0] || 
-                                                   extensions.getElementsByTagName('Waypoints')[0];
-                                if (waypointsEl) {
-                                    const waypointEls = waypointsEl.getElementsByTagName('gpxx:Waypoint');
-                                    if (waypointEls.length === 0) {
-                                        const waypointEls2 = waypointsEl.getElementsByTagName('Waypoint');
-                                        Array.from(waypointEls2).forEach(wpEl => {
-                                            waypoints.push({
-                                                lat: parseFloat(wpEl.getAttribute('lat')),
-                                                lon: parseFloat(wpEl.getAttribute('lon'))
-                                            });
-                                        });
-                                    } else {
-                                        Array.from(waypointEls).forEach(wpEl => {
-                                            waypoints.push({
-                                                lat: parseFloat(wpEl.getAttribute('lat')),
-                                                lon: parseFloat(wpEl.getAttribute('lon'))
-                                            });
-                                        });
-                                    }
+                                // Build waypointIndices for this segment
+                                // Segments SHARE boundary waypoints!
+                                const startIndex = (segIdx === 0) ? 0 : boundaryWpIndex;
+                                const endIndex = waypoints.length - 1;
+                                
+                                const waypointIndices = [];
+                                for (let wi = startIndex; wi <= endIndex; wi++) {
+                                    waypointIndices.push(wi);
                                 }
+                                
+                                importedSegments.push({
+                                    mode: segMode,
+                                    startIndex: startIndex,
+                                    endIndex: endIndex,
+                                    waypointIndices: waypointIndices,
+                                    geometry: geometry
+                                });
                             }
                             
-                            const trkpts = trk.getElementsByTagName('trkpt');
-                            const coordinates = Array.from(trkpts).map(pt => ({
+                            // Create route with pre-loaded segments (no recalculation needed!)
+                            if (waypoints.length > 0) {
+                                const route = {
+                                    id: nextRouteId++,
+                                    name,
+                                    color,
+                                    waypoints,
+                                    segments: importedSegments
+                                };
+                                // Fix connections without API calls
+                                fixManualToRoutingConnections(route);
+                                routes.push(route);
+                            }
+                            continue; // Skip the recalculate section below
+                        } else if (oldRouteMode) {
+                            // Old format compatibility - geometry is already in trkpt, no API calls needed!
+                            const allTrkpts = [];
+                            for (const trkseg of Array.from(trksegs)) {
+                                const trkpts = trkseg.getElementsByTagName('trkpt');
+                                allTrkpts.push(...Array.from(trkpts));
+                            }
+                            
+                            // Read geometry from trkpt
+                            const geometry = allTrkpts.map(pt => ({
                                 lat: parseFloat(pt.getAttribute('lat')),
                                 lon: parseFloat(pt.getAttribute('lon'))
                             }));
-
-                            if (coordinates.length > 0) {
-                                createRoute(coordinates, name, color, routeMode, waypoints);
-                            }
-                        });
-
-                        processed++;
-                        if (processed === totalFiles) {
-                            // All files processed
-                            renderAllRoutes();
-                            updateUI();
-                            updateRoutesList();
-                            fitBoundsToRoutes();
                             
-                            // Hide loading and close import panel
-                            setTimeout(() => {
-                                dropzoneLoading.style.display = 'none';
-                                dropzoneContent.style.display = 'block';
-                                // Close import panel after successful import
-                                setTimeout(() => {
-                                    document.getElementById('import-panel').style.display = 'none';
-                                }, 500);
-                            }, 300);
+                            if (oldRouteMode === 'manual') {
+                                // All trkpt are manual waypoints (waypoints = geometry)
+                                allTrkpts.forEach((pt, idx) => {
+                                    waypoints.push({
+                                        lat: parseFloat(pt.getAttribute('lat')),
+                                        lon: parseFloat(pt.getAttribute('lon')),
+                                        mode: idx === 0 ? 'start' : 'manual'
+                                    });
+                                });
+                            } else if (oldRouteMode === 'routing') {
+                                // First trkpt is start, last is end, waypoints from extensions
+                                if (allTrkpts.length > 0) {
+                                    waypoints.push({
+                                        lat: parseFloat(allTrkpts[0].getAttribute('lat')),
+                                        lon: parseFloat(allTrkpts[0].getAttribute('lon')),
+                                        mode: 'start'
+                                    });
+                                    
+                                    oldWaypoints.forEach(wp => {
+                                        waypoints.push({ ...wp, mode: 'routing' });
+                                    });
+                                    
+                                    if (allTrkpts.length > 1) {
+                                        const lastPt = allTrkpts[allTrkpts.length - 1];
+                                        waypoints.push({
+                                            lat: parseFloat(lastPt.getAttribute('lat')),
+                                            lon: parseFloat(lastPt.getAttribute('lon')),
+                                            mode: 'routing'
+                                        });
+                                    }
+                                }
+                            }
+                            
+                            // Create route with pre-loaded geometry (no API calls!)
+                            if (waypoints.length > 0) {
+                                const waypointIndices = waypoints.map((_, i) => i);
+                                const route = {
+                                    id: nextRouteId++,
+                                    name,
+                                    color,
+                                    waypoints,
+                                    segments: [{
+                                        mode: oldRouteMode,
+                                        startIndex: 0,
+                                        endIndex: waypoints.length - 1,
+                                        waypointIndices: waypointIndices,
+                                        geometry: geometry
+                                    }]
+                                };
+                                routes.push(route);
+                            }
+                        } else {
+                            // No format info - treat as manual, geometry = waypoints
+                            const geometry = [];
+                            for (const trkseg of Array.from(trksegs)) {
+                                const trkpts = trkseg.getElementsByTagName('trkpt');
+                                Array.from(trkpts).forEach((pt, idx) => {
+                                    const lat = parseFloat(pt.getAttribute('lat'));
+                                    const lon = parseFloat(pt.getAttribute('lon'));
+                                    
+                                    geometry.push({ lat, lon });
+                                    
+                                    if (waypoints.length === 0) {
+                                        waypoints.push({ lat, lon, mode: 'start' });
+                                    } else {
+                                        waypoints.push({ lat, lon, mode: 'manual' });
+                                    }
+                                });
+                            }
+                            
+                            // Create route with pre-loaded geometry (no API calls!)
+                            if (waypoints.length > 0) {
+                                const waypointIndices = waypoints.map((_, i) => i);
+                                const route = {
+                                    id: nextRouteId++,
+                                    name,
+                                    color,
+                                    waypoints,
+                                    segments: [{
+                                        mode: 'manual',
+                                        startIndex: 0,
+                                        endIndex: waypoints.length - 1,
+                                        waypointIndices: waypointIndices,
+                                        geometry: geometry
+                                    }]
+                                };
+                                routes.push(route);
+                            }
                         }
-                    };
-                    reader.onerror = () => {
-                        processed++;
-                        if (processed === totalFiles) {
-                            dropzoneLoading.style.display = 'none';
-                            dropzoneContent.style.display = 'block';
-                            setTimeout(() => {
-                                document.getElementById('import-panel').style.display = 'none';
-                            }, 500);
-                        }
-                    };
-                    reader.readAsText(file);
-                } else {
-                    processed++;
-                    if (processed === totalFiles) {
-                        dropzoneLoading.style.display = 'none';
-                        dropzoneContent.style.display = 'block';
-                        setTimeout(() => {
-                            document.getElementById('import-panel').style.display = 'none';
-                        }, 500);
                     }
-                }
+                    
+                    resolve();
+                };
+                reader.readAsText(file);
             });
+        }
+
+        async function importMultipleGPX(files) {
+            const dropzoneContent = document.querySelector('.dropzone-content');
+            const dropzoneLoading = document.getElementById('dropzone-loading');
+            
+            dropzoneContent.style.display = 'none';
+            dropzoneLoading.style.display = 'flex';
+            
+            for (const file of Array.from(files)) {
+                if (file.name.toLowerCase().endsWith('.gpx')) {
+                    await importGPX(file);
+                }
+            }
+            
+            renderAllRoutes();
+            updateUI();
+            fitBoundsToRoutes();
+            
+            dropzoneLoading.style.display = 'none';
+            dropzoneContent.style.display = 'block';
+            
+            setTimeout(() => {
+                document.getElementById('import-panel').style.display = 'none';
+            }, 500);
         }
 
         function fitBoundsToRoutes() {
@@ -2096,8 +2740,8 @@
             
             const allCoords = [];
             routes.forEach(route => {
-                route.coordinates.forEach(coord => {
-                    allCoords.push([coord.lat, coord.lon]);
+                route.waypoints.forEach(wp => {
+                    allCoords.push([wp.lat, wp.lon]);
                 });
             });
             
@@ -2108,139 +2752,19 @@
         }
 
         // ======================
-        // MAP INTERACTIONS
-        // ======================
-        
-        // Prevent default context menu on map
-        map.on('contextmenu', (e) => {
-            L.DomEvent.stopPropagation(e);
-            L.DomEvent.preventDefault(e);
-        });
-        
-        map.on('click', async (e) => {
-            const route = routes.find(r => r.id === activeRouteId);
-            if (!route) return;
-            
-            // Manual route mode
-            if (mode === 'editing-manual') {
-                // Allow adding points:
-                // - Always if less than 2 points (initial creation)
-                // - With CTRL if 2+ points exist
-                if (route.coordinates.length < 2 || ctrlPressed) {
-                    route.coordinates.push({
-                        lat: e.latlng.lat,
-                        lon: e.latlng.lng
-                    });
-                    renderRoute(route, true);
-                    updateUI();
-                }
-            }
-            
-            // Routing mode
-            else if (mode === 'editing-routing') {
-                const numPoints = route.coordinates.length;
-                
-                // First two points don't need CTRL
-                if (numPoints === 0) {
-                    // Add start point
-                    route.coordinates.push({
-                        lat: e.latlng.lat,
-                        lon: e.latlng.lng
-                    });
-                    if (!tempRouteData) {
-                        tempRouteData = { waypoints: [] };
-                    }
-                    renderRoute(route, true);
-                    updateUI();
-                }
-                else if (numPoints === 1) {
-                    // Add end point and calculate initial route
-                    const start = route.coordinates[0];
-                    const end = { lat: e.latlng.lat, lon: e.latlng.lng };
-                    
-                    tempRouteData = {
-                        start: { ...start },
-                        end: { ...end },
-                        waypoints: []
-                    };
-                    
-                    const coords = await calculateRoute(tempRouteData.start, tempRouteData.end, []);
-                    if (coords) {
-                        route.coordinates = coords;
-                        route.waypoints = [];
-                        renderRoute(route, true);
-                        updateUI();
-                    }
-                }
-                // Further points need CTRL - extend route
-                else if (ctrlPressed) {
-                    // Check waypoint limit
-                    const currentWaypoints = route.waypoints || [];
-                    if (currentWaypoints.length >= 15) {
-                        alert('Maximální počet průjezdních bodů je 15');
-                        return;
-                    }
-                    
-                    // Current end becomes last waypoint
-                    const currentEnd = route.coordinates[route.coordinates.length - 1];
-                    const newWaypoints = [...currentWaypoints, { lat: currentEnd.lat, lon: currentEnd.lon }];
-                    
-                    // New click becomes new end
-                    const newEnd = { lat: e.latlng.lat, lon: e.latlng.lng };
-                    
-                    // Update tempRouteData
-                    tempRouteData.end = newEnd;
-                    tempRouteData.waypoints = newWaypoints;
-                    
-                    // Recalculate route
-                    const coords = await calculateRoute(tempRouteData.start, tempRouteData.end, tempRouteData.waypoints);
-                    if (coords) {
-                        route.coordinates = coords;
-                        route.waypoints = newWaypoints;
-                        renderRoute(route, true);
-                        updateUI();
-                    }
-                }
-            }
-        });
-
-        async function recalculateRoutingRoute() {
-            const coords = await calculateRoute(tempRouteData.start, tempRouteData.end, tempRouteData.waypoints || []);
-            if (coords) {
-                const route = routes.find(r => r.id === activeRouteId);
-                if (route) {
-                    route.coordinates = coords;
-                    route.waypoints = tempRouteData.waypoints || [];
-                    renderRoute(route, true);
-                }
-            }
-        }
-
-        // ======================
         // BUTTON HANDLERS
         // ======================
-        document.getElementById('btn-create-manual').addEventListener('click', () => {
-            if (activeRouteId) {
-                deactivateRoute();
-            }
-            const route = createRoute([], 'Nová trasa', 'red', 'manual', []);
-            activateRouteWithBestFit(route.id);
-        });
-
-        document.getElementById('btn-create-routing').addEventListener('click', () => {
-            if (activeRouteId) {
-                deactivateRoute();
-            }
-            const route = createRoute([], 'Nová trasa', 'red', 'routing', []);
-            activateRouteWithBestFit(route.id);
+        document.getElementById('btn-create-route').addEventListener('click', () => {
+            if (isEditing) return;
+            const route = createRoute('Nová trasa', 'red');
+            activateRoute(route.id);
         });
 
         document.getElementById('btn-save-route').addEventListener('click', () => {
-            // Clean up routing markers
-            if (tempRouteData) {
-                if (tempRouteData.startMarker) map.removeLayer(tempRouteData.startMarker);
-                if (tempRouteData.endMarker) map.removeLayer(tempRouteData.endMarker);
-                tempRouteData = null;
+            const route = routes.find(r => r.id === activeRouteId);
+            if (route && route.waypoints.length < 2) {
+                alert('Trasa musí mít minimálně 2 body.');
+                return;
             }
             deactivateRoute();
         });
@@ -2249,48 +2773,73 @@
             cancelRouteEditing();
         });
 
-        // ======================
-        // DRAG & DROP / FILE UPLOAD HANDLERS
-        // ======================
+        // Route menu handlers
+        const routeMenuBtn = document.getElementById('route-menu-btn');
+        const routeMenu = document.getElementById('route-menu');
+        
+        routeMenuBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            routeMenu.classList.toggle('visible');
+        });
+
+        document.getElementById('menu-delete-route').addEventListener('click', (e) => {
+            e.stopPropagation();
+            routeMenu.classList.remove('visible');
+            
+            if (!activeRouteId) return;
+            
+            const route = routes.find(r => r.id === activeRouteId);
+            const routeName = route ? route.name : 'tuto trasu';
+            
+            if (confirm(`Opravdu chcete smazat trasu "${routeName}"?`)) {
+                deleteRoute(activeRouteId);
+                activeRouteId = null;
+                isEditing = false;
+                routeBackup = null;
+                hideHoverMarker();
+                updateUI();
+            }
+        });
+
+        // Close route menu when clicking elsewhere
+        document.addEventListener('click', () => {
+            routeMenu.classList.remove('visible');
+        });
+
+        // Import/Export handlers
         const dropzone = document.getElementById('dropzone');
         const gpxInput = document.getElementById('gpx-input');
         const importPanel = document.getElementById('import-panel');
 
-        // Show import panel
         document.getElementById('btn-import-gpx').addEventListener('click', () => {
-            if (mode === 'none') {
+            if (!isEditing) {
                 importPanel.style.display = 'block';
                 dropzone.classList.add('visible');
             }
         });
 
-        // Hide import panel
         document.getElementById('btn-close-import').addEventListener('click', () => {
             importPanel.style.display = 'none';
             dropzone.classList.remove('visible');
         });
 
-        // Click to select files
         dropzone.addEventListener('click', () => {
-            if (mode === 'none') {
+            if (!isEditing) {
                 gpxInput.click();
             }
         });
 
-        // Handle file selection
         gpxInput.addEventListener('change', (e) => {
             if (e.target.files.length > 0) {
                 importMultipleGPX(e.target.files);
-                // Reset input
                 e.target.value = '';
             }
         });
 
-        // Drag & Drop handlers
         dropzone.addEventListener('dragover', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            if (mode === 'none') {
+            if (!isEditing) {
                 dropzone.classList.add('dragover');
             }
         });
@@ -2306,7 +2855,7 @@
             e.stopPropagation();
             dropzone.classList.remove('dragover');
             
-            if (mode === 'none') {
+            if (!isEditing) {
                 const files = e.dataTransfer.files;
                 if (files.length > 0) {
                     importMultipleGPX(files);
@@ -2326,22 +2875,6 @@
             if (route) {
                 route.name = routeNameInput.value;
                 updateUI();
-                // Update status bar immediately to show new name
-                if (mode === 'editing-manual') {
-                    if (route.coordinates.length < 2) {
-                        statusBar.textContent = `Vytváření ruční trasy: ${route.name || 'Bez názvu'} - klikejte do mapy`;
-                    } else {
-                        statusBar.textContent = `Úprava ruční trasy: ${route.name || 'Bez názvu'}`;
-                    }
-                } else if (mode === 'editing-routing') {
-                    if (route.coordinates.length === 0) {
-                        statusBar.textContent = `Vytváření plánované trasy: ${route.name || 'Bez názvu'} - nastavte start`;
-                    } else if (route.coordinates.length === 1) {
-                        statusBar.textContent = `Vytváření plánované trasy: ${route.name || 'Bez názvu'} - nastavte cíl`;
-                    } else {
-                        statusBar.textContent = `Úprava plánované trasy: ${route.name || 'Bez názvu'}`;
-                    }
-                }
             }
         });
 
@@ -2353,22 +2886,23 @@
             }
         });
 
-        // ======================
-        // ROUTE SEARCH HANDLERS
-        // ======================
+        // Route search
         document.getElementById('route-search-input').addEventListener('input', (e) => {
             routeSearchQuery = e.target.value;
             updateRoutesList();
         });
 
         // ======================
-        // INITIALIZATION
+        // KEY TRACKING
         // ======================
-        
-        // CTRL key tracking for adding points
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Control' || e.ctrlKey) {
                 ctrlPressed = true;
+                updateUI();
+            }
+            if (e.key === 'Alt' || e.altKey) {
+                altPressed = true;
+                e.preventDefault(); // Prevent menu from appearing
                 updateUI();
             }
         });
@@ -2378,25 +2912,31 @@
                 ctrlPressed = false;
                 updateUI();
             }
-        });
-
-        // Reset CTRL state when window loses focus
-        window.addEventListener('blur', () => {
-            ctrlPressed = false;
-            updateUI();
-        });
-
-        // Warn user before leaving the page
-        window.addEventListener('beforeunload', (e) => {
-            // Only show warning if there are routes
-            if (routes.length > 0) {
-                const message = 'Skutečně chcete MapyEditor opustit? Máte vše uložené do souboru na disku?';
-                e.preventDefault();
-                e.returnValue = message; // Standard way to trigger browser warning
-                return message; // Some older browsers need this
+            if (e.key === 'Alt' || !e.altKey) {
+                altPressed = false;
+                updateUI();
             }
         });
 
+        window.addEventListener('blur', () => {
+            ctrlPressed = false;
+            altPressed = false;
+            updateUI();
+        });
+
+        // Warn before leaving
+        window.addEventListener('beforeunload', (e) => {
+            if (routes.length > 0) {
+                const message = 'Skutečně chcete MapyEditor opustit? Máte vše uložené do souboru na disku?';
+                e.preventDefault();
+                e.returnValue = message;
+                return message;
+            }
+        });
+
+        // ======================
+        // INITIALIZATION
+        // ======================
         updateUI();
     </script>
 </body>
