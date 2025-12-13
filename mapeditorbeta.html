@@ -36,19 +36,19 @@
         }
 
         #map.add-routing-mode {
-            cursor: crosshair !important;
+            cursor: copy !important;
         }
 
         #map.add-routing-mode * {
-            cursor: crosshair !important;
+            cursor: copy !important;
         }
 
         #map.add-manual-mode {
-            cursor: cell !important;
+            cursor: crosshair !important;
         }
 
         #map.add-manual-mode * {
-            cursor: cell !important;
+            cursor: crosshair !important;
         }
 
         #map.add-start-mode {
@@ -483,6 +483,83 @@
             margin: 4px 0;
         }
 
+        /* Panel header with menu */
+        .panel-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .panel-header-row h3 {
+            margin: 0;
+        }
+
+        .panel-menu-container {
+            position: relative;
+        }
+
+        .panel-menu-btn {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            color: #666;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .panel-menu-btn:hover {
+            background: #e0e0e0;
+            color: #333;
+        }
+
+        .panel-menu {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: 100%;
+            background: white;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 100;
+            min-width: 150px;
+        }
+
+        .panel-menu.visible {
+            display: block;
+        }
+
+        .panel-menu-item {
+            padding: 10px 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            white-space: nowrap;
+        }
+
+        .panel-menu-item:hover {
+            background-color: #f0f0f0;
+        }
+
+        .panel-menu-item svg {
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
+        }
+
+        .panel-menu-item.delete {
+            color: #D32F2F;
+        }
+
+        .panel-menu-item.delete svg {
+            color: #D32F2F;
+        }
+
         .help-hint {
             font-size: 12px;
             color: #b0b0b0;
@@ -756,7 +833,27 @@
             </div>
 
             <div class="panel-section" id="attributes-panel" style="display: none;">
-                <h3>Atributy trasy</h3>
+                <div class="panel-header-row">
+                    <h3>Editace trasy</h3>
+                    <div class="panel-menu-container">
+                        <button class="panel-menu-btn" id="route-menu-btn" title="Menu trasy">
+                            <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+                                <circle cx="12" cy="5" r="2"></circle>
+                                <circle cx="12" cy="12" r="2"></circle>
+                                <circle cx="12" cy="19" r="2"></circle>
+                            </svg>
+                        </button>
+                        <div class="panel-menu" id="route-menu">
+                            <div class="panel-menu-item delete" id="menu-delete-route">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="3 6 5 6 21 6"></polyline>
+                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                </svg>
+                                Smazat trasu
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 <div class="form-group">
                     <label for="route-name">Název</label>
                     <input type="text" id="route-name" placeholder="Název trasy">
@@ -1732,15 +1829,15 @@
                             className: 'route-tooltip'
                         });
                         
-                        line.on('mouseover', function() {
+                        line.on('mouseover', () => {
                             if (!isEditing) {
-                                this.setStyle({ weight: 8, opacity: 1 });
+                                highlightRouteInMap(route.id, true);
                             }
                         });
                         
-                        line.on('mouseout', function() {
+                        line.on('mouseout', () => {
                             if (!isEditing) {
-                                this.setStyle({ weight: 5, opacity: 0.95 });
+                                highlightRouteInMap(route.id, false);
                             }
                         });
                         
@@ -1774,7 +1871,7 @@
                         markerColor = '#FFC107'; // Yellow for routing
                         markerSize = 14;
                     } else {
-                        markerColor = '#FFFFFF'; // White for manual
+                        markerColor = '#90CAF9'; // Light blue for manual
                         markerSize = 14;
                     }
                     
@@ -2023,19 +2120,33 @@
 
         function cancelRouteEditing() {
             const route = routes.find(r => r.id === activeRouteId);
+            if (!route) {
+                deactivateRoute();
+                return;
+            }
             
-            if (route && route.waypoints.length < 2) {
-                // Delete incomplete route
+            // Check if this is a new route (backup had no waypoints)
+            const isNewRoute = !routeBackup || routeBackup.waypoints.length < 2;
+            
+            // Check if there are any changes to cancel
+            const hasChanges = route.waypoints.length > 0 || 
+                route.name !== (routeBackup?.name || 'Nová trasa') ||
+                route.color !== (routeBackup?.color || 'red');
+            
+            if (hasChanges && !confirm('Opravdu zrušit změny provedené v trase?')) {
+                return;
+            }
+            
+            if (isNewRoute) {
+                // New route - delete it completely
                 deleteRoute(activeRouteId);
             } else if (routeBackup && activeRouteId) {
-                // Restore from backup
-                const route = routes.find(r => r.id === activeRouteId);
-                if (route) {
-                    route.name = routeBackup.name;
-                    route.color = routeBackup.color;
-                    route.waypoints = routeBackup.waypoints;
-                    route.segments = routeBackup.segments;
-                }
+                // Existing route - restore from backup
+                route.name = routeBackup.name;
+                route.color = routeBackup.color;
+                route.waypoints = routeBackup.waypoints;
+                route.segments = routeBackup.segments;
+                renderRoute(route, false);
             }
             
             deactivateRoute();
@@ -2128,7 +2239,10 @@
         }
 
         function exportGPX() {
-            if (routes.length === 0) {
+            // Filter routes with at least 2 waypoints
+            const validRoutes = routes.filter(r => r.waypoints && r.waypoints.length >= 2);
+            
+            if (validRoutes.length === 0) {
                 alert('Žádné trasy k exportu');
                 return;
             }
@@ -2136,7 +2250,7 @@
             let gpx = '<?xml version="1.0" encoding="UTF-8"?>\n';
             gpx += '<gpx version="1.1" creator="MapyEditorBeta" xmlns="http://www.topografix.com/GPX/1/1" xmlns:gpxx="http://www.garmin.com/xmlschemas/GpxExtensions/v3">\n';
 
-            routes.forEach(route => {
+            validRoutes.forEach(route => {
                 gpx += '  <trk>\n';
                 gpx += `    <name>${escapeXml(route.name || 'Trasa ' + route.id)}</name>\n`;
                 gpx += '    <extensions>\n';
@@ -2639,11 +2753,49 @@
         });
 
         document.getElementById('btn-save-route').addEventListener('click', () => {
+            const route = routes.find(r => r.id === activeRouteId);
+            if (route && route.waypoints.length < 2) {
+                alert('Trasa musí mít minimálně 2 body.');
+                return;
+            }
             deactivateRoute();
         });
 
         document.getElementById('btn-cancel-route').addEventListener('click', () => {
             cancelRouteEditing();
+        });
+
+        // Route menu handlers
+        const routeMenuBtn = document.getElementById('route-menu-btn');
+        const routeMenu = document.getElementById('route-menu');
+        
+        routeMenuBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            routeMenu.classList.toggle('visible');
+        });
+
+        document.getElementById('menu-delete-route').addEventListener('click', (e) => {
+            e.stopPropagation();
+            routeMenu.classList.remove('visible');
+            
+            if (!activeRouteId) return;
+            
+            const route = routes.find(r => r.id === activeRouteId);
+            const routeName = route ? route.name : 'tuto trasu';
+            
+            if (confirm(`Opravdu chcete smazat trasu "${routeName}"?`)) {
+                deleteRoute(activeRouteId);
+                activeRouteId = null;
+                isEditing = false;
+                routeBackup = null;
+                hideHoverMarker();
+                updateUI();
+            }
+        });
+
+        // Close route menu when clicking elsewhere
+        document.addEventListener('click', () => {
+            routeMenu.classList.remove('visible');
         });
 
         // Import/Export handlers

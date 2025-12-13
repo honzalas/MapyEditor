@@ -95,15 +95,17 @@ Segmenty:
 
 ### Vizualizace (pouze v editačním módu)
 
-| Prvek | Vzhled |
-|-------|--------|
-| Routing segment | Plná čára |
-| Manual segment | Čárkovaná čára |
-| Start marker | Zelený (16px) |
-| End marker | Červený (16px) |
-| Routing waypoint | Žlutý (14px) |
-| Manual waypoint | Bílý (14px) |
-| Midpoint marker | Průhledný žlutý (10px) |
+| Prvek | Vzhled | Barva |
+|-------|--------|-------|
+| Routing segment | Plná čára | Barva trasy |
+| Manual segment | Čárkovaná čára | Barva trasy |
+| Start marker | Zelený kruh (16px) | `#4CAF50` |
+| End marker | Červený kruh (16px) | `#F44336` |
+| Routing waypoint | Žlutý kruh (14px) | `#FFC107` |
+| Manual waypoint | Bledě modrý kruh (14px) | `#90CAF9` |
+| Hover midpoint marker | Zelený kruh s + (24px) | `#4CAF50` |
+
+Všechny markery mají **bílý okraj (3px)** a stín.
 
 ## Výpočet geometrie
 
@@ -367,12 +369,62 @@ Při importu se první `<trkpt>` přeskočí (je to jen spojovací bod, ne waypo
 
 ## Kurzory myši
 
-| Stav | Kurzor |
-|------|--------|
-| CTRL stisknuto | `crosshair` (žlutý popisek "routing") |
-| ALT stisknuto | `crosshair` (bílý popisek "manual") |
-| Myš nad trasou (možnost midpoint) | `pointer` |
-| Výchozí | `grab` |
+| Stav | Kurzor | Popis |
+|------|--------|-------|
+| CTRL stisknuto (plánování) | `copy` | Šipka s plusem |
+| ALT stisknuto (ruční) | `crosshair` | Kříž |
+| Přidání startu | `crosshair` | Kříž |
+| Myš nad trasou (možnost midpoint) | `copy` | Šipka s plusem |
+| Výchozí v editaci | `grab` | Ruka |
+
+### CSS třídy
+
+```css
+#map.add-routing-mode { cursor: copy; }      /* CTRL - plánování */
+#map.add-manual-mode { cursor: crosshair; }  /* ALT - ruční */
+#map.add-start-mode { cursor: crosshair; }   /* První bod */
+```
+
+---
+
+## Validace trasy
+
+### Minimální počet bodů
+
+Trasa musí mít **minimálně 2 body** (start + alespoň jeden další):
+
+| Akce | Chování |
+|------|---------|
+| Uložit trasu s <2 body | Alert: "Trasa musí mít minimálně 2 body." |
+| Stornovat novou trasu s <2 body | Trasa se automaticky smaže |
+| Export GPX | Trasy s <2 body se přeskočí |
+
+### Stornování nové trasy
+
+Pokud uživatel vytvoří novou trasu a stornuje ji **před přidáním 2 bodů**, trasa se automaticky odstraní a nepřidá do seznamu.
+
+---
+
+## Menu trasy (smazání)
+
+Panel "Editace trasy" obsahuje menu (ikona tří teček) s funkcí:
+
+### Smazat trasu
+
+- Vyžaduje potvrzení dialogem: *"Opravdu chcete smazat trasu „Název"?"*
+- Po potvrzení se trasa úplně odstraní
+- Editační mód se ukončí
+
+```
+┌─────────────────────────────────┐
+│ Editace trasy              [⋮] │
+│                    ┌──────────┐ │
+│ Název: [____]      │🗑 Smazat │ │
+│ Barva: [▼ ]        │  trasu   │ │
+│                    └──────────┘ │
+│ [Uložit] [Storno]               │
+└─────────────────────────────────┘
+```
 
 ---
 
