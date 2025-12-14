@@ -3,8 +3,6 @@
  * Manages the right panel UI (routes list, attributes, import/export)
  */
 
-import { COLOR_MAP } from '../config.js';
-
 /**
  * Manages the right panel UI
  */
@@ -287,18 +285,18 @@ class PanelManager {
             
             const colorIndicator = document.createElement('div');
             colorIndicator.className = 'route-color-indicator';
-            colorIndicator.style.backgroundColor = COLOR_MAP[route.color] || COLOR_MAP.red;
+            colorIndicator.style.backgroundColor = route.getColor();
             
             const textDiv = document.createElement('div');
             textDiv.className = 'route-item-text';
             
             const nameDiv = document.createElement('div');
             nameDiv.className = 'route-item-name';
-            nameDiv.textContent = route.name || 'Bez názvu';
+            nameDiv.textContent = route.getTitle();
             
             const infoDiv = document.createElement('div');
             infoDiv.className = 'route-item-info';
-            infoDiv.textContent = `${route.waypoints.length} bodů`;
+            infoDiv.textContent = route.getSubtitle();
             
             textDiv.appendChild(nameDiv);
             textDiv.appendChild(infoDiv);

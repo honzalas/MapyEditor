@@ -47,6 +47,21 @@ Segment je **nepřerušená sekvence waypointů stejného módu**.
 }
 ```
 
+#### Virtualizované zobrazovací metody
+
+Třída `Route` poskytuje metody pro konzistentní zobrazení dat napříč UI:
+
+```javascript
+route.getTitle()     // → "Cesta na Sněžku" nebo "Trasa 5"
+route.getSubtitle()  // → "Počet bodů: 15"
+route.getColor()     // → "#D32F2F" (hex barva)
+```
+
+Tyto metody:
+- Centralizují logiku zobrazení
+- Umožňují snadné změny formátování na jednom místě
+- Používají se ve všech UI komponentách (seznam tras, tooltips, routes menu)
+
 ## Návaznost geometrie
 
 Klíčové pravidlo: **Geometrie musí být souvislá** (bez skoků).
@@ -87,7 +102,8 @@ Segmenty:
 | **ALT + klik** | Přidá waypoint s `mode=manual` |
 | Klik na midpoint marker | Přidá waypoint se zděděným módem od segmentu |
 | Drag waypointu | Přesune waypoint, přepočítá dotčené segmenty |
-| Pravý klik na waypoint | Zobrazí kontextové menu |
+| Pravý klik na waypoint | Zobrazí kontextové menu waypointu |
+| **Pravý klik na trasu** (mimo edit mód) | **Zobrazí menu s výběrem tras v místě** |
 
 ### Kontextové menu waypointu
 
@@ -95,6 +111,32 @@ Segmenty:
 - **Rozdělit trasu** - rozdělí trasu na dvě v tomto bodě
 - **Změnit na routing** - změní mód na routing (přepočítá segment)
 - **Změnit na ruční** - změní mód na manual (přepočítá segment)
+
+### Routes Menu (výběr tras v místě)
+
+Když uživatel klikne **pravým tlačítkem na mapu mimo editační mód**, zobrazí se menu se seznamem tras, které vedou daným místem:
+
+- **Tolerance detekce**: 20 pixelů od kurzoru
+- **Seznam tras**: Seřazeno podle vzdálenosti (nejbližší první)
+- **Zobrazení**: 
+  - Barevný indikátor trasy
+  - Název trasy
+  - Počet bodů
+- **Akce**: Klik na trasu ji otevře v editačním módu
+
+```
+┌─────────────────────────────┐
+│ Trasy v místě:              │
+├─────────────────────────────┤
+│ 🔴 Cesta na Sněžku         │
+│    Počet bodů: 15           │
+├─────────────────────────────┤
+│ 🔵 Krkonošská magistrála   │
+│    Počet bodů: 42           │
+└─────────────────────────────┘
+```
+
+> **Použití:** Umožňuje snadný výběr trasy na místech, kde se trasy překrývají nebo křižují.
 
 ### Vizualizace (pouze v editačním módu)
 

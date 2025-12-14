@@ -48,6 +48,37 @@ export class Route {
         this.segments = data.segments || [];
     }
     
+    /**
+     * Get display title for the route
+     * @returns {string}
+     */
+    getTitle() {
+        return this.name || `Trasa ${this.id}`;
+    }
+    
+    /**
+     * Get display subtitle for the route
+     * @returns {string}
+     */
+    getSubtitle() {
+        const count = this.waypoints.length;
+        return `Počet bodů: ${count}`;
+    }
+    
+    /**
+     * Get color hex value for the route
+     * @returns {string}
+     */
+    getColor() {
+        // Import COLOR_MAP inline to avoid circular dependency
+        const COLOR_MAP = {
+            red: '#D32F2F',
+            blue: '#1976D2',
+            green: '#388E3C'
+        };
+        return COLOR_MAP[this.color] || COLOR_MAP.red;
+    }
+    
     clone() {
         return new Route({
             id: this.id,

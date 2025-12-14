@@ -20,8 +20,10 @@ import { routeCalculator } from './services/RouteCalculator.js';
 import { mapManager } from './ui/MapManager.js';
 import { routeRenderer } from './ui/RouteRenderer.js';
 import { contextMenu } from './ui/ContextMenu.js';
+import { routesMenu } from './ui/RoutesMenu.js';
 import { hoverMarker } from './ui/HoverMarker.js';
 import { panelManager } from './ui/PanelManager.js';
+import { findRoutesAtPoint } from './services/GeometryUtils.js';
 
 /**
  * Main application controller
@@ -39,12 +41,14 @@ class App {
         // Initialize UI components
         mapManager.initialize('map');
         contextMenu.initialize();
+        routesMenu.initialize();
         panelManager.initialize();
         
         // Set up callbacks
         this._setupRoutingServiceCallbacks();
         this._setupRendererCallbacks();
         this._setupContextMenuCallbacks();
+        this._setupRoutesMenuCallbacks();
         this._setupHoverMarkerCallbacks();
         this._setupPanelCallbacks();
         this._setupMapEventHandlers();
@@ -125,6 +129,12 @@ class App {
         });
     }
     
+    _setupRoutesMenuCallbacks() {
+        routesMenu.setRouteSelectCallback((routeId) => {
+            this._activateRouteWithBestFit(routeId);
+        });
+    }
+    
     _setupHoverMarkerCallbacks() {
         hoverMarker.setClickCallback(async (data) => {
             await this._insertMidpoint(data);
@@ -198,6 +208,26 @@ class App {
         // Map click for adding waypoints
         mapManager.on('click', async (e) => {
             await this._handleMapClick(e);
+        });
+        
+        // Right-click for routes menu (when not editing)
+        mapManager.on('contextmenu', (e) => {
+            L.DomEvent.preventDefault(e);
+            
+            if (!dataStore.isEditing && dataStore.routes.length > 0) {
+                // Find routes at this point
+                const routeResults = findRoutesAtPoint(
+                    e.latlng,
+                    dataStore.routes,
+                    20, // 20px tolerance
+                    mapManager.map
+                );
+                
+                if (routeResults.length > 0) {
+                    const pixel = mapManager.latLngToContainerPoint(e.latlng);
+                    routesMenu.show(pixel.x, pixel.y, routeResults);
+                }
+            }
         });
     }
     

@@ -200,4 +200,51 @@ export function pointsEqual(p1, p2, tolerance = 0.000001) {
            Math.abs((p1.lon || p1.lng) - (p2.lon || p2.lng)) < tolerance;
 }
 
+/**
+ * Find all routes that pass through a given point (within tolerance)
+ * @param {Object} latlng - Point with lat and lng/lon properties
+ * @param {Array} routes - Array of route objects
+ * @param {number} maxDistancePixels - Maximum distance in pixels
+ * @param {Object} map - Leaflet map instance for pixel conversion
+ * @returns {Array} Array of routes sorted by distance
+ */
+export function findRoutesAtPoint(latlng, routes, maxDistancePixels, map) {
+    const results = [];
+    
+    for (const route of routes) {
+        if (!route.segments || route.segments.length === 0) continue;
+        
+        let minDistance = Infinity;
+        
+        // Check all segments
+        for (const segment of route.segments) {
+            if (!segment.geometry || segment.geometry.length < 2) continue;
+            
+            const result = findClosestPointOnPolyline(latlng, segment.geometry);
+            if (result.distance < minDistance) {
+                minDistance = result.distance;
+            }
+        }
+        
+        // Convert coordinate distance to pixels
+        const point1 = map.latLngToContainerPoint(latlng);
+        const testPoint = L.latLng(latlng.lat + minDistance, latlng.lng);
+        const point2 = map.latLngToContainerPoint(testPoint);
+        const pixelDistance = Math.abs(point2.y - point1.y);
+        
+        if (pixelDistance <= maxDistancePixels) {
+            results.push({
+                route: route,
+                distance: minDistance,
+                pixelDistance: pixelDistance
+            });
+        }
+    }
+    
+    // Sort by distance (closest first)
+    results.sort((a, b) => a.distance - b.distance);
+    
+    return results;
+}
+
 

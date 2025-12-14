@@ -80,12 +80,6 @@ class MapManager {
         // Add logo control
         this._addLogoControl();
         
-        // Prevent default context menu
-        this._map.on('contextmenu', (e) => {
-            L.DomEvent.stopPropagation(e);
-            L.DomEvent.preventDefault(e);
-        });
-        
         return this._map;
     }
     

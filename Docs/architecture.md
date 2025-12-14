@@ -61,7 +61,8 @@ MapyEditor/
 │   └── ui/                       # 🎨 UI VRSTVA
 │       ├── MapManager.js         # Správa Leaflet mapy
 │       ├── RouteRenderer.js      # Vykreslování tras
-│       ├── ContextMenu.js        # Kontextové menu
+│       ├── ContextMenu.js        # Kontextové menu waypointů
+│       ├── RoutesMenu.js         # Menu pro výběr tras v místě
 │       ├── HoverMarker.js        # Dynamický midpoint marker
 │       └── PanelManager.js       # Správa pravého panelu
 │
@@ -112,10 +113,17 @@ class Route {
     waypoints: Array<{lat, lon, mode}>
     segments: Array<{mode, geometry, waypointIndices}>
     
-    clone()     // Hluboká kopie pro backup
-    toJSON()    // Serializace
+    // Virtualizované zobrazovací metody
+    getTitle()      // Vrací zobrazitelný název trasy
+    getSubtitle()   // Vrací dodatečné info (počet bodů)
+    getColor()      // Vrací hex barvu (#D32F2F, #1976D2, #388E3C)
+    
+    clone()         // Hluboká kopie pro backup
+    toJSON()        // Serializace
 }
 ```
+
+> **Poznámka:** Metody `getTitle()`, `getSubtitle()` a `getColor()` centralizují logiku zobrazení a používají se ve všech UI komponentách pro konzistenci.
 
 **DataStore** - Singleton správce stavu
 ```javascript
@@ -217,6 +225,10 @@ findClosestPointOnPolyline(latlng, geometry)
 findClosestPointOnGeometry(latlng, segment, waypoints)
 findWaypointGeometryIndices(segment, waypoints)
 pointsEqual(p1, p2, tolerance)
+
+// Detekce tras v bodě
+findRoutesAtPoint(latlng, routes, maxDistancePixels, map)
+// Vrací: [{route, distance, pixelDistance}]
 ```
 
 #### RoutingService.js
@@ -306,6 +318,24 @@ class ContextMenu {
 }
 ```
 
+#### RoutesMenu.js
+```javascript
+class RoutesMenu {
+    initialize()
+    show(x, y, routeResults)  // routeResults = [{route, distance, pixelDistance}]
+    hide()
+    isVisible()
+    
+    setRouteSelectCallback(callback)
+}
+```
+
+**Použití:**
+- Zobrazí se při pravém kliku na mapu (mimo edit mód)
+- Najde všechny trasy v dosahu 20px od kurzoru
+- Zobrazí seznam s použitím `route.getTitle()`, `route.getSubtitle()`, `route.getColor()`
+- Klik na trasu ji aktivuje pro editaci
+
 #### HoverMarker.js
 ```javascript
 class HoverMarker {
@@ -358,6 +388,7 @@ class App {
         this._setupRoutingServiceCallbacks();
         this._setupRendererCallbacks();
         this._setupContextMenuCallbacks();
+        this._setupRoutesMenuCallbacks();
         this._setupHoverMarkerCallbacks();
         this._setupPanelCallbacks();
         this._setupMapEventHandlers();
@@ -429,6 +460,37 @@ DataStore.emit('route:updated')
     ├──► RouteRenderer.render()
     │
     └──► PanelManager.updateUI()
+```
+
+### Routes Menu Flow
+
+```
+User: Pravý klik na mapu (mimo edit mód)
+    │
+    ▼
+┌─────────────┐
+│   app.js    │  ← Map 'contextmenu' event
+└──────┬──────┘
+       │
+       ▼
+┌─────────────────┐
+│ GeometryUtils   │  ← findRoutesAtPoint(latlng, routes, 20px, map)
+└──────┬──────────┘
+       │
+       ▼
+┌─────────────────┐
+│  RoutesMenu     │  ← show(x, y, routeResults)
+└──────┬──────────┘  │  Zobrazí seznam tras s:
+       │             │  - route.getTitle()
+       │             │  - route.getSubtitle()
+       │             │  - route.getColor()
+       ▼
+    User klikne na trasu
+       │
+       ▼
+┌─────────────┐
+│   app.js    │  ← _activateRouteWithBestFit(routeId)
+└─────────────┘
 ```
 
 ---

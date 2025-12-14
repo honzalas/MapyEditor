@@ -3,7 +3,7 @@
  * Handles rendering of routes on the map
  */
 
-import { COLOR_MAP, MARKER_COLORS, MARKER_SIZES } from '../config.js';
+import { MARKER_COLORS, MARKER_SIZES } from '../config.js';
 import { mapManager } from './MapManager.js';
 
 /**
@@ -50,15 +50,6 @@ class RouteRenderer {
     }
     
     /**
-     * Get color hex value
-     * @param {string} colorName - Color name (red, blue, green)
-     * @returns {string} Hex color
-     */
-    getColorHex(colorName) {
-        return COLOR_MAP[colorName] || COLOR_MAP.red;
-    }
-    
-    /**
      * Render a route on the map
      * @param {Object} route - Route object
      * @param {boolean} isActive - Whether the route is being edited
@@ -73,7 +64,7 @@ class RouteRenderer {
             return;
         }
         
-        const color = this.getColorHex(route.color);
+        const color = route.getColor();
         const lines = [];
         const markers = [];
         
@@ -99,7 +90,7 @@ class RouteRenderer {
                 mapManager.addLayer(line);
                 
                 if (!isActive) {
-                    line.bindTooltip(route.name || `Trasa ${route.id}`, {
+                    line.bindTooltip(route.getTitle(), {
                         permanent: false,
                         direction: 'top',
                         className: 'route-tooltip'
