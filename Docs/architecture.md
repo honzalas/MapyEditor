@@ -465,11 +465,11 @@ DataStore.emit('route:updated')
 ### Routes Menu Flow
 
 ```
-User: Pravý klik na mapu (mimo edit mód)
+User: Klik na trasu NEBO pravý klik na mapu (mimo edit mód)
     │
     ▼
 ┌─────────────┐
-│   app.js    │  ← Map 'contextmenu' event
+│   app.js    │  ← RouteRenderer 'click' nebo Map 'contextmenu' event
 └──────┬──────┘
        │
        ▼
@@ -477,21 +477,28 @@ User: Pravý klik na mapu (mimo edit mód)
 │ GeometryUtils   │  ← findRoutesAtPoint(latlng, routes, 20px, map)
 └──────┬──────────┘
        │
-       ▼
-┌─────────────────┐
-│  RoutesMenu     │  ← show(x, y, routeResults)
-└──────┬──────────┘  │  Zobrazí seznam tras s:
-       │             │  - route.getTitle()
-       │             │  - route.getSubtitle()
-       │             │  - route.getColor()
-       ▼
-    User klikne na trasu
+       ├─────► Pouze 1 trasa?
+       │       └──► _activateRouteWithBestFit(routeId)
        │
-       ▼
-┌─────────────┐
-│   app.js    │  ← _activateRouteWithBestFit(routeId)
-└─────────────┘
+       └─────► Více tras?
+               │
+               ▼
+       ┌─────────────────┐
+       │  RoutesMenu     │  ← show(x, y, routeResults)
+       └──────┬──────────┘  │  Zobrazí seznam tras s:
+              │             │  - route.getTitle()
+              │             │  - route.getSubtitle()
+              │             │  - route.getColor()
+              ▼
+           User klikne na trasu
+              │
+              ▼
+       ┌─────────────┐
+       │   app.js    │  ← _activateRouteWithBestFit(routeId)
+       └─────────────┘
 ```
+
+> **Poznámka:** Klik ze seznamu tras v pravém panelu přeskakuje detekci a otevírá trasu rovnou.
 
 ---
 

@@ -108,9 +108,10 @@ class RouteRenderer {
                         }
                     });
                     
-                    line.on('click', () => {
+                    line.on('click', (e) => {
                         if (!isEditing && this._onRouteClick) {
-                            this._onRouteClick(route.id);
+                            L.DomEvent.stopPropagation(e);
+                            this._onRouteClick(route.id, e.latlng);
                         }
                     });
                 }

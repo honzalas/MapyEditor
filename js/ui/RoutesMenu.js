@@ -11,6 +11,7 @@ class RoutesMenu {
         this._element = null;
         this._listElement = null;
         this._onRouteSelect = null;
+        this._justOpened = false;
     }
     
     /**
@@ -22,6 +23,10 @@ class RoutesMenu {
         
         // Hide on any click outside
         document.addEventListener('click', () => {
+            // Ignore click if menu was just opened
+            if (this._justOpened) {
+                return;
+            }
             this.hide();
         });
         
@@ -100,6 +105,12 @@ class RoutesMenu {
         this._element.style.left = x + 'px';
         this._element.style.top = y + 'px';
         this._element.style.display = 'block';
+        
+        // Set flag to prevent immediate closing
+        this._justOpened = true;
+        setTimeout(() => {
+            this._justOpened = false;
+        }, 100);
         
         // Adjust position if it goes off screen
         setTimeout(() => {

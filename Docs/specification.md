@@ -102,8 +102,9 @@ Segmenty:
 | **ALT + klik** | Přidá waypoint s `mode=manual` |
 | Klik na midpoint marker | Přidá waypoint se zděděným módem od segmentu |
 | Drag waypointu | Přesune waypoint, přepočítá dotčené segmenty |
+| **Klik na trasu** (mimo edit mód) | **Otevře editaci (1 trasa) nebo zobrazí menu (více tras)** |
 | Pravý klik na waypoint | Zobrazí kontextové menu waypointu |
-| **Pravý klik na trasu** (mimo edit mód) | **Zobrazí menu s výběrem tras v místě** |
+| **Pravý klik na mapu** (mimo edit mód) | **Zobrazí menu s výběrem tras v místě** |
 
 ### Kontextové menu waypointu
 
@@ -114,8 +115,13 @@ Segmenty:
 
 ### Routes Menu (výběr tras v místě)
 
-Když uživatel klikne **pravým tlačítkem na mapu mimo editační mód**, zobrazí se menu se seznamem tras, které vedou daným místem:
+Routes Menu se zobrazí ve dvou případech:
 
+1. **Klik na trasu (levé tlačítko)**: Pokud je v místě **více než jedna trasa**, zobrazí se menu. Pokud je jen jedna trasa, otevře se rovnou v editačním módu.
+
+2. **Pravý klik na mapu**: Zobrazí menu se všemi trasami v místě (pokud existují).
+
+**Parametry:**
 - **Tolerance detekce**: 20 pixelů od kurzoru
 - **Seznam tras**: Seřazeno podle vzdálenosti (nejbližší první)
 - **Zobrazení**: 
@@ -136,7 +142,7 @@ Když uživatel klikne **pravým tlačítkem na mapu mimo editační mód**, zob
 └─────────────────────────────┘
 ```
 
-> **Použití:** Umožňuje snadný výběr trasy na místech, kde se trasy překrývají nebo křižují.
+> **Použití:** Umožňuje snadný výběr trasy na místech, kde se trasy překrývají nebo křižují. Při kliku na samostatnou trasu se editace otevře rovnou bez menu.
 
 ### Vizualizace (pouze v editačním módu)
 

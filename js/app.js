@@ -84,8 +84,26 @@ class App {
     }
     
     _setupRendererCallbacks() {
-        routeRenderer.setRouteClickCallback((routeId) => {
-            this._activateRouteWithBestFit(routeId);
+        routeRenderer.setRouteClickCallback((routeId, latlng) => {
+            // Detekce všech tras v místě kliku
+            const routeResults = findRoutesAtPoint(
+                latlng,
+                dataStore.routes,
+                20, // 20px tolerance
+                mapManager.map
+            );
+            
+            if (routeResults.length === 0) {
+                // Žádná trasa (nemělo by nastat, ale pro jistotu)
+                return;
+            } else if (routeResults.length === 1) {
+                // Pouze jedna trasa - rovnou otevřít edit
+                this._activateRouteWithBestFit(routeResults[0].route.id);
+            } else {
+                // Více tras - zobrazit menu
+                const pixel = mapManager.latLngToContainerPoint(latlng);
+                routesMenu.show(pixel.x, pixel.y, routeResults);
+            }
         });
         
         routeRenderer.setRouteHoverCallback((routeId, isHovering) => {
