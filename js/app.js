@@ -174,19 +174,15 @@ class App {
             }
         });
         
-        panelManager.setNameChangeCallback((name) => {
+        panelManager.setAttributeChangeCallback((attr, value) => {
             const route = dataStore.activeRoute;
             if (route) {
-                route.name = name;
+                route[attr] = value;
+                // Re-render if color-related attribute changed
+                if (attr === 'color' || attr === 'customColor') {
+                    routeRenderer.render(route, true, dataStore.isEditing);
+                }
                 this._updateUI();
-            }
-        });
-        
-        panelManager.setColorChangeCallback((color) => {
-            const route = dataStore.activeRoute;
-            if (route) {
-                route.color = color;
-                routeRenderer.render(route, true, dataStore.isEditing);
             }
         });
         
@@ -302,9 +298,10 @@ class App {
     _createNewRoute() {
         if (dataStore.isEditing) return;
         
-        const route = dataStore.createRoute('Nová trasa', 'red');
+        const route = dataStore.createRoute();
         dataStore.activateRoute(route.id);
         routeRenderer.render(route, true, true);
+        panelManager.resetFormState();
         this._updateUI();
     }
     
@@ -332,6 +329,7 @@ class App {
             }
         }
         
+        panelManager.resetFormState();
         this._updateUI();
     }
     
@@ -440,8 +438,18 @@ class App {
         // Recalculate original route
         await routeCalculator.recalculateRouteGeometry(route);
         
-        // Create and calculate new route
-        const newRoute = dataStore.createRoute(route.name + ' (2)', route.color);
+        // Create and calculate new route (copy attributes from original)
+        const newRoute = dataStore.createRoute();
+        // Copy all attributes from original route
+        newRoute.routeType = route.routeType;
+        newRoute.color = route.color;
+        newRoute.customColor = route.customColor;
+        newRoute.symbol = route.symbol;
+        newRoute.name = route.name ? route.name + ' (2)' : null;
+        newRoute.ref = route.ref ? route.ref + '-2' : null;
+        newRoute.network = route.network;
+        newRoute.wikidata = null;  // Don't copy wikidata
+        newRoute.customData = route.customData;
         newRoute.waypoints = wp2;
         await routeCalculator.recalculateRouteGeometry(newRoute);
         

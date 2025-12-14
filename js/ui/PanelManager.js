@@ -3,6 +3,8 @@
  * Manages the right panel UI (routes list, attributes, import/export)
  */
 
+import { ROUTE_TYPE_ENUM, ROUTE_COLOR_ENUM, ROUTE_NETWORK_ENUM } from '../config.js';
+
 /**
  * Manages the right panel UI
  */
@@ -15,17 +17,28 @@ class PanelManager {
         this._routesListContainer = null;
         this._routesList = null;
         this._routesCount = null;
-        this._routeNameInput = null;
-        this._routeColorSelect = null;
         this._importPanel = null;
         this._dropzone = null;
         this._routeMenu = null;
         
+        // Form elements
+        this._routeTypeSelect = null;
+        this._routeRefInput = null;
+        this._routeNameInput = null;
+        this._routeColorSelect = null;
+        this._routeCustomColorInput = null;
+        this._customColorGroup = null;
+        this._routeSymbolInput = null;
+        this._routeNetworkSelect = null;
+        this._routeWikidataInput = null;
+        this._routeCustomDataTextarea = null;
+        this._customDataToggle = null;
+        this._customDataContent = null;
+        
         // Callbacks
         this._onRouteClick = null;
         this._onRouteHover = null;
-        this._onNameChange = null;
-        this._onColorChange = null;
+        this._onAttributeChange = null;
         this._onSave = null;
         this._onCancel = null;
         this._onCreateRoute = null;
@@ -44,13 +57,59 @@ class PanelManager {
         this._routesListContainer = document.getElementById('routes-list-container');
         this._routesList = document.getElementById('routes-list');
         this._routesCount = document.getElementById('routes-count');
-        this._routeNameInput = document.getElementById('route-name');
-        this._routeColorSelect = document.getElementById('route-color');
         this._importPanel = document.getElementById('import-panel');
         this._dropzone = document.getElementById('dropzone');
         this._routeMenu = document.getElementById('route-menu');
         
+        // Form elements
+        this._routeTypeSelect = document.getElementById('route-type');
+        this._routeRefInput = document.getElementById('route-ref');
+        this._routeNameInput = document.getElementById('route-name');
+        this._routeColorSelect = document.getElementById('route-color');
+        this._routeCustomColorInput = document.getElementById('route-custom-color');
+        this._customColorGroup = document.getElementById('custom-color-group');
+        this._routeSymbolInput = document.getElementById('route-symbol');
+        this._routeNetworkSelect = document.getElementById('route-network');
+        this._routeWikidataInput = document.getElementById('route-wikidata');
+        this._routeCustomDataTextarea = document.getElementById('route-custom-data');
+        this._customDataToggle = document.getElementById('custom-data-toggle');
+        this._customDataContent = document.getElementById('custom-data-content');
+        
+        this._populateSelects();
         this._bindEvents();
+    }
+    
+    /**
+     * Populate select boxes from enums
+     * @private
+     */
+    _populateSelects() {
+        // Route type
+        this._routeTypeSelect.innerHTML = '';
+        ROUTE_TYPE_ENUM.forEach(item => {
+            const option = document.createElement('option');
+            option.value = item.value;
+            option.textContent = item.label;
+            this._routeTypeSelect.appendChild(option);
+        });
+        
+        // Color (with empty option)
+        this._routeColorSelect.innerHTML = '<option value="">-- Bez barvy --</option>';
+        ROUTE_COLOR_ENUM.forEach(item => {
+            const option = document.createElement('option');
+            option.value = item.value;
+            option.textContent = item.label;
+            this._routeColorSelect.appendChild(option);
+        });
+        
+        // Network
+        this._routeNetworkSelect.innerHTML = '';
+        ROUTE_NETWORK_ENUM.forEach(item => {
+            const option = document.createElement('option');
+            option.value = item.value;
+            option.textContent = item.label;
+            this._routeNetworkSelect.appendChild(option);
+        });
     }
     
     /**
@@ -58,18 +117,58 @@ class PanelManager {
      * @private
      */
     _bindEvents() {
-        // Route name change
-        this._routeNameInput.addEventListener('input', () => {
-            if (this._onNameChange) {
-                this._onNameChange(this._routeNameInput.value);
+        // Attribute change handlers
+        const notifyChange = (attr, value) => {
+            if (this._onAttributeChange) {
+                this._onAttributeChange(attr, value);
             }
+        };
+        
+        this._routeTypeSelect.addEventListener('change', () => {
+            notifyChange('routeType', this._routeTypeSelect.value);
         });
         
-        // Route color change
+        this._routeRefInput.addEventListener('input', () => {
+            notifyChange('ref', this._routeRefInput.value || null);
+        });
+        
+        this._routeNameInput.addEventListener('input', () => {
+            notifyChange('name', this._routeNameInput.value || null);
+        });
+        
         this._routeColorSelect.addEventListener('change', () => {
-            if (this._onColorChange) {
-                this._onColorChange(this._routeColorSelect.value);
-            }
+            const color = this._routeColorSelect.value || null;
+            notifyChange('color', color);
+            // Show/hide custom color input
+            this._customColorGroup.style.display = color === 'Other' ? 'block' : 'none';
+        });
+        
+        this._routeCustomColorInput.addEventListener('input', () => {
+            notifyChange('customColor', this._routeCustomColorInput.value);
+        });
+        
+        this._routeSymbolInput.addEventListener('input', () => {
+            notifyChange('symbol', this._routeSymbolInput.value || null);
+        });
+        
+        this._routeNetworkSelect.addEventListener('change', () => {
+            notifyChange('network', this._routeNetworkSelect.value);
+        });
+        
+        this._routeWikidataInput.addEventListener('input', () => {
+            notifyChange('wikidata', this._routeWikidataInput.value || null);
+        });
+        
+        this._routeCustomDataTextarea.addEventListener('input', () => {
+            notifyChange('customData', this._routeCustomDataTextarea.value || null);
+        });
+        
+        // Custom data toggle
+        this._customDataToggle.addEventListener('click', (e) => {
+            e.preventDefault();
+            const isVisible = this._customDataContent.style.display !== 'none';
+            this._customDataContent.style.display = isVisible ? 'none' : 'block';
+            this._customDataToggle.querySelector('.toggle-icon').textContent = isVisible ? '▶' : '▼';
         });
         
         // Save button
@@ -180,8 +279,7 @@ class PanelManager {
     
     setRouteClickCallback(callback) { this._onRouteClick = callback; }
     setRouteHoverCallback(callback) { this._onRouteHover = callback; }
-    setNameChangeCallback(callback) { this._onNameChange = callback; }
-    setColorChangeCallback(callback) { this._onColorChange = callback; }
+    setAttributeChangeCallback(callback) { this._onAttributeChange = callback; }
     setSaveCallback(callback) { this._onSave = callback; }
     setCancelCallback(callback) { this._onCancel = callback; }
     setCreateRouteCallback(callback) { this._onCreateRoute = callback; }
@@ -232,18 +330,49 @@ class PanelManager {
         
         if (isEditing && activeRoute) {
             // Update status bar
+            const title = activeRoute.getTitle();
             if (activeRoute.waypoints.length === 0) {
-                this.setStatusText(`Nová trasa: ${activeRoute.name || 'Bez názvu'} - klikněte pro start`);
+                this.setStatusText(`Nová trasa: ${title} - klikněte pro start`);
             } else {
                 const wpCount = activeRoute.waypoints.length;
-                this.setStatusText(`Úprava trasy: ${activeRoute.name || 'Bez názvu'} (${wpCount} bodů)`);
+                this.setStatusText(`Úprava trasy: ${title} (${wpCount} bodů)`);
             }
             
             // Hide routes list, show attributes panel
             this._routesListContainer.classList.add('hidden');
             this._attributesPanel.style.display = 'block';
-            this._routeNameInput.value = activeRoute.name || '';
-            this._routeColorSelect.value = activeRoute.color || 'red';
+            
+            // Fill form with route attributes (only if value differs to preserve focus)
+            if (this._routeTypeSelect.value !== (activeRoute.routeType || 'Hiking')) {
+                this._routeTypeSelect.value = activeRoute.routeType || 'Hiking';
+            }
+            if (this._routeRefInput.value !== (activeRoute.ref || '')) {
+                this._routeRefInput.value = activeRoute.ref || '';
+            }
+            if (this._routeNameInput.value !== (activeRoute.name || '')) {
+                this._routeNameInput.value = activeRoute.name || '';
+            }
+            if (this._routeColorSelect.value !== (activeRoute.color || '')) {
+                this._routeColorSelect.value = activeRoute.color || '';
+            }
+            if (this._routeCustomColorInput.value !== (activeRoute.customColor || '#808080')) {
+                this._routeCustomColorInput.value = activeRoute.customColor || '#808080';
+            }
+            this._customColorGroup.style.display = activeRoute.color === 'Other' ? 'block' : 'none';
+            if (this._routeSymbolInput.value !== (activeRoute.symbol || '')) {
+                this._routeSymbolInput.value = activeRoute.symbol || '';
+            }
+            if (this._routeNetworkSelect.value !== (activeRoute.network || 'Nwn')) {
+                this._routeNetworkSelect.value = activeRoute.network || 'Nwn';
+            }
+            if (this._routeWikidataInput.value !== (activeRoute.wikidata || '')) {
+                this._routeWikidataInput.value = activeRoute.wikidata || '';
+            }
+            if (this._routeCustomDataTextarea.value !== (activeRoute.customData || '')) {
+                this._routeCustomDataTextarea.value = activeRoute.customData || '';
+            }
+            
+            // Note: custom data toggle state is reset only in resetForm()
             
             // Enable save and cancel buttons
             document.getElementById('btn-save-route').disabled = false;
@@ -257,6 +386,16 @@ class PanelManager {
             document.getElementById('btn-save-route').disabled = true;
             document.getElementById('btn-cancel-route').disabled = true;
         }
+    }
+    
+    /**
+     * Reset form state (collapsible sections, etc.)
+     * Call this when opening edit mode for a route
+     */
+    resetFormState() {
+        // Reset custom data toggle to collapsed
+        this._customDataContent.style.display = 'none';
+        this._customDataToggle.querySelector('.toggle-icon').textContent = '▶';
     }
     
     /**

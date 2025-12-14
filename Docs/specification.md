@@ -37,25 +37,57 @@ Segment je **nepřerušená sekvence waypointů stejného módu**.
 
 ### Trasa
 
+Trasa obsahuje OSM-like atributy pro popis a geometrická data:
+
 ```javascript
 {
     id: number,
-    name: string,
-    color: 'red' | 'blue' | 'green',
-    waypoints: Waypoint[],        // řídící body
-    segments: Segment[],          // vypočtené segmenty s geometrií
+    
+    // Atributy trasy
+    routeType: 'Hiking' | 'Foot' | 'FitnessTrail' | 'ViaFerrata',  // povinný
+    color: 'Red' | 'Blue' | 'Green' | ... | 'Other' | null,        // volitelný
+    customColor: string | null,    // HEX barva, použita při color='Other'
+    symbol: string | null,         // textový popis značení
+    name: string | null,           // název trasy
+    ref: string | null,            // číslo/zkratka trasy
+    network: 'Iwn' | 'Nwn' | 'Lwn', // rozsah trasy
+    wikidata: string | null,       // Wikidata ID
+    customData: string | null,     // vlastní poznámky
+    
+    // Geometrie
+    waypoints: Waypoint[],         // řídící body
+    segments: Segment[],           // vypočtené segmenty s geometrií
 }
 ```
+
+#### Atributy tras
+
+| Atribut | Typ | Povinný | Popis |
+|---------|-----|---------|-------|
+| routeType | enum | ✅ | Typ trasy (Hiking, Foot, FitnessTrail, ViaFerrata) |
+| color | enum | ❌ | Barva trasy (Red, Blue, Green, Yellow, Black, Brown, Orange, Purple, Other) |
+| customColor | string | ❌ | Vlastní HEX barva (pouze při color=Other) |
+| symbol | string | ❌ | Textový popis značení (např. "červená značka") |
+| name | string | ❌ | Název trasy |
+| ref | string | ❌ | Číslo nebo zkratka trasy |
+| network | enum | ❌ | Rozsah trasy (Iwn=mezinárodní, Nwn=národní, Lwn=lokální) |
+| wikidata | string | ❌ | Wikidata ID (např. Q12345) |
+| customData | string | ❌ | Vlastní poznámky |
 
 #### Virtualizované zobrazovací metody
 
 Třída `Route` poskytuje metody pro konzistentní zobrazení dat napříč UI:
 
 ```javascript
-route.getTitle()     // → "Cesta na Sněžku" nebo "Trasa 5"
-route.getSubtitle()  // → "Počet bodů: 15"
-route.getColor()     // → "#D32F2F" (hex barva)
+route.getTitle()     // → coalesce(ref, name, "noname")
+route.getSubtitle()  // → český název routeType (např. "Turistická trasa")
+route.getColor()     // → HEX barva (z enum, customColor, nebo šedá #808080)
 ```
+
+**Logika `getColor()`:**
+- `color === null` → `#808080` (šedá, default)
+- `color === 'Other'` → `customColor` nebo `#808080`
+- Jinak → HEX hodnota z enum
 
 Tyto metody:
 - Centralizují logiku zobrazení
@@ -184,73 +216,35 @@ Pokud routing sekvence má více než 15 WP:
 
 ## GPX formát
 
-### Nový formát (více segmentů)
+Kompletní specifikace GPX formátu je v samostatném dokumentu: **[gpxStorage.md](gpxStorage.md)**
+
+### Shrnutí
+
+- Atributy tras se ukládají do `<extensions>` s namespace `mapy:`
+- Segmenty používají `gpxx:SegmentMode` pro rozlišení routing/manual
+- Zpětná kompatibilita se starými formáty (DisplayColor, RouteMode)
+
+### Příklad
 
 ```xml
 <trk>
-  <name>Název trasy</name>
+  <name>Turistická trasa</name>
   <extensions>
-    <gpxx:DisplayColor>red</gpxx:DisplayColor>
+    <mapy:routeType>Hiking</mapy:routeType>
+    <mapy:color>Red</mapy:color>
+    <mapy:ref>0001</mapy:ref>
+    <mapy:name>Turistická trasa</mapy:name>
   </extensions>
-  
-  <!-- Routing segment -->
   <trkseg>
     <extensions>
       <gpxx:SegmentMode>routing</gpxx:SegmentMode>
-      <gpxx:StartPoint lat="49.123" lon="14.456"/>
-      <gpxx:EndPoint lat="49.789" lon="14.012"/>
-      <gpxx:Waypoints>
-        <gpxx:Waypoint lat="49.456" lon="14.234"/>
-      </gpxx:Waypoints>
+      ...
     </extensions>
-    <trkpt lat="49.123" lon="14.456"></trkpt>
-    <trkpt lat="49.124" lon="14.457"></trkpt>
-    <!-- ... vypočtená geometrie ... -->
-    <trkpt lat="49.789" lon="14.012"></trkpt>
-  </trkseg>
-  
-  <!-- Manual segment -->
-  <trkseg>
-    <extensions>
-      <gpxx:SegmentMode>manual</gpxx:SegmentMode>
-    </extensions>
-    <trkpt lat="49.789" lon="14.012"></trkpt>
-    <trkpt lat="49.800" lon="14.020"></trkpt>
-    <trkpt lat="49.810" lon="14.030"></trkpt>
+    <trkpt lat="50.123" lon="14.456"></trkpt>
+    ...
   </trkseg>
 </trk>
 ```
-
-### Kompatibilita se starým formátem
-
-**Starý formát `RouteMode=manual`:**
-```xml
-<trk>
-  <extensions>
-    <gpxx:RouteMode>manual</gpxx:RouteMode>
-  </extensions>
-  <trkseg>
-    <trkpt>...</trkpt>
-  </trkseg>
-</trk>
-```
-→ Všechny `<trkpt>` jsou waypointy s `mode=manual`, první je Start
-
-**Starý formát `RouteMode=routing`:**
-```xml
-<trk>
-  <extensions>
-    <gpxx:RouteMode>routing</gpxx:RouteMode>
-    <gpxx:Waypoints>
-      <gpxx:Waypoint lat="..." lon="..."/>
-    </gpxx:Waypoints>
-  </extensions>
-  <trkseg>
-    <trkpt>...</trkpt>
-  </trkseg>
-</trk>
-```
-→ První `<trkpt>` = Start, poslední = End (routing), Waypoints z extensions = routing WP, ostatní trkpt = geometrie
 
 ## Konfigurace
 

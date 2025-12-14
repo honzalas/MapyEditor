@@ -3,6 +3,15 @@
  * Central data store with event emission for reactive updates
  */
 
+import { 
+    ROUTE_TYPE_ENUM, 
+    ROUTE_COLOR_ENUM, 
+    ROUTE_NETWORK_ENUM,
+    DEFAULT_ROUTE_COLOR,
+    getEnumItem,
+    getEnumLabel 
+} from '../config.js';
+
 /**
  * Simple event emitter mixin
  */
@@ -37,53 +46,97 @@ class EventEmitter {
 }
 
 /**
- * Route model
+ * Route model with OSM-like attributes
+ * 
+ * Attributes:
+ * - routeType: enum (Hiking, Foot, FitnessTrail, ViaFerrata) - required, default: Hiking
+ * - color: enum (Red, Blue, Green, Yellow, Black, Brown, Orange, Purple, Other) - optional
+ * - customColor: string (hex color) - used when color == 'Other'
+ * - symbol: string - text description of route marking
+ * - name: string - route name
+ * - ref: string - route number/abbreviation
+ * - network: enum (Iwn, Nwn, Lwn) - route scope, default: Nwn
+ * - wikidata: string - Wikidata ID
+ * - customData: string - custom user data
  */
 export class Route {
     constructor(data = {}) {
         this.id = data.id || null;
-        this.name = data.name || 'Nová trasa';
-        this.color = data.color || 'red';
+        
+        // New OSM-like attributes
+        this.routeType = data.routeType || 'Hiking';
+        this.color = data.color || null;
+        this.customColor = data.customColor || null;
+        this.symbol = data.symbol || null;
+        this.name = data.name || null;
+        this.ref = data.ref || null;
+        this.network = data.network || 'Nwn';
+        this.wikidata = data.wikidata || null;
+        this.customData = data.customData || null;
+        
+        // Geometry data
         this.waypoints = data.waypoints || [];
         this.segments = data.segments || [];
     }
     
     /**
      * Get display title for the route
+     * Uses coalesce(ref, name, "noname")
      * @returns {string}
      */
     getTitle() {
-        return this.name || `Trasa ${this.id}`;
+        return this.ref || this.name || 'noname';
     }
     
     /**
      * Get display subtitle for the route
+     * Shows route type in Czech
      * @returns {string}
      */
     getSubtitle() {
-        const count = this.waypoints.length;
-        return `Počet bodů: ${count}`;
+        return getEnumLabel(ROUTE_TYPE_ENUM, this.routeType);
     }
     
     /**
      * Get color hex value for the route
+     * - If color is null -> DEFAULT_ROUTE_COLOR (gray)
+     * - If color is 'Other' -> customColor
+     * - Otherwise -> hex from enum
      * @returns {string}
      */
     getColor() {
-        // Import COLOR_MAP inline to avoid circular dependency
-        const COLOR_MAP = {
-            red: '#D32F2F',
-            blue: '#1976D2',
-            green: '#388E3C'
-        };
-        return COLOR_MAP[this.color] || COLOR_MAP.red;
+        if (this.color === null) {
+            return DEFAULT_ROUTE_COLOR;
+        }
+        
+        if (this.color === 'Other') {
+            return this.customColor || DEFAULT_ROUTE_COLOR;
+        }
+        
+        const colorItem = getEnumItem(ROUTE_COLOR_ENUM, this.color);
+        return colorItem ? colorItem.hex : DEFAULT_ROUTE_COLOR;
+    }
+    
+    /**
+     * Get all attribute names for comparison/backup
+     * @returns {Array<string>}
+     */
+    static getAttributeNames() {
+        return ['routeType', 'color', 'customColor', 'symbol', 'name', 'ref', 'network', 'wikidata', 'customData'];
     }
     
     clone() {
         return new Route({
             id: this.id,
-            name: this.name,
+            routeType: this.routeType,
             color: this.color,
+            customColor: this.customColor,
+            symbol: this.symbol,
+            name: this.name,
+            ref: this.ref,
+            network: this.network,
+            wikidata: this.wikidata,
+            customData: this.customData,
             waypoints: this.waypoints.map(wp => ({ ...wp })),
             segments: this.segments.map(seg => ({
                 ...seg,
@@ -96,8 +149,15 @@ export class Route {
     toJSON() {
         return {
             id: this.id,
-            name: this.name,
+            routeType: this.routeType,
             color: this.color,
+            customColor: this.customColor,
+            symbol: this.symbol,
+            name: this.name,
+            ref: this.ref,
+            network: this.network,
+            wikidata: this.wikidata,
+            customData: this.customData,
             waypoints: this.waypoints,
             segments: this.segments
         };
@@ -188,6 +248,7 @@ class DataStore extends EventEmitter {
     
     /**
      * Get filtered routes based on search query
+     * Searches in name, ref, and symbol
      */
     getFilteredRoutes() {
         if (!this._routeSearchQuery) {
@@ -196,18 +257,25 @@ class DataStore extends EventEmitter {
         const query = this._routeSearchQuery.toLowerCase();
         return this._routes.filter(route => {
             const name = route.name || '';
-            return name.toLowerCase().includes(query);
+            const ref = route.ref || '';
+            const symbol = route.symbol || '';
+            return name.toLowerCase().includes(query) ||
+                   ref.toLowerCase().includes(query) ||
+                   symbol.toLowerCase().includes(query);
         });
     }
     
     /**
      * Create a new route
      */
-    createRoute(name = 'Nová trasa', color = 'red') {
+    createRoute() {
         const route = new Route({
             id: this._nextRouteId++,
-            name,
-            color,
+            routeType: 'Hiking',
+            color: null,
+            name: null,
+            ref: null,
+            network: 'Nwn',
             waypoints: [],
             segments: []
         });
@@ -340,9 +408,10 @@ class DataStore extends EventEmitter {
             // New route - delete it completely
             this.deleteRoute(this._activeRouteId);
         } else {
-            // Existing route - restore from backup
-            route.name = this._routeBackup.name;
-            route.color = this._routeBackup.color;
+            // Existing route - restore all attributes from backup
+            Route.getAttributeNames().forEach(attr => {
+                route[attr] = this._routeBackup[attr];
+            });
             route.waypoints = this._routeBackup.waypoints;
             route.segments = this._routeBackup.segments;
             this.emit('route:restored', route);
@@ -358,9 +427,11 @@ class DataStore extends EventEmitter {
         const route = this.activeRoute;
         if (!route || !this._routeBackup) return false;
         
-        // Check name and color
-        if (route.name !== this._routeBackup.name || route.color !== this._routeBackup.color) {
-            return true;
+        // Check all route attributes
+        for (const attr of Route.getAttributeNames()) {
+            if (route[attr] !== this._routeBackup[attr]) {
+                return true;
+            }
         }
         
         // Check waypoints count

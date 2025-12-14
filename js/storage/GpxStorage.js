@@ -1,10 +1,13 @@
 /**
  * MapyEditor - GPX Storage
  * Implementation of StorageInterface for GPX file format
+ * 
+ * See Docs/gpxStorage.md for GPX format specification
  */
 
 import { StorageInterface } from './StorageInterface.js';
 import { Route } from '../models/DataStore.js';
+import { ROUTE_COLOR_ENUM, LEGACY_COLOR_MAP } from '../config.js';
 
 /**
  * GPX Storage implementation
@@ -57,13 +60,19 @@ export class GpxStorage extends StorageInterface {
      */
     _generateGpx(routes) {
         let gpx = '<?xml version="1.0" encoding="UTF-8"?>\n';
-        gpx += '<gpx version="1.1" creator="MapyEditorBeta" xmlns="http://www.topografix.com/GPX/1/1" xmlns:gpxx="http://www.garmin.com/xmlschemas/GpxExtensions/v3">\n';
+        gpx += '<gpx version="1.1" creator="MapyEditorBeta" xmlns="http://www.topografix.com/GPX/1/1" xmlns:gpxx="http://www.garmin.com/xmlschemas/GpxExtensions/v3" xmlns:mapy="http://mapyeditor.local/gpx/1">\n';
 
         routes.forEach(route => {
             gpx += '  <trk>\n';
-            gpx += `    <name>${this._escapeXml(route.name || 'Trasa ' + route.id)}</name>\n`;
+            
+            // Standard GPX name element (for compatibility)
+            if (route.name) {
+                gpx += `    <name>${this._escapeXml(route.name)}</name>\n`;
+            }
+            
+            // Route attributes in extensions
             gpx += '    <extensions>\n';
-            gpx += `      <gpxx:DisplayColor>${route.color}</gpxx:DisplayColor>\n`;
+            gpx += this._generateRouteExtensions(route);
             gpx += '    </extensions>\n';
             
             // Export each segment as a trkseg
@@ -175,10 +184,50 @@ export class GpxStorage extends StorageInterface {
     }
     
     /**
+     * Generate route extensions XML
+     * @private
+     */
+    _generateRouteExtensions(route) {
+        let ext = '';
+        
+        // Required attribute
+        ext += `      <mapy:routeType>${route.routeType || 'Hiking'}</mapy:routeType>\n`;
+        
+        // Optional attributes - only output if set
+        if (route.color) {
+            ext += `      <mapy:color>${route.color}</mapy:color>\n`;
+        }
+        if (route.customColor) {
+            ext += `      <mapy:customColor>${this._escapeXml(route.customColor)}</mapy:customColor>\n`;
+        }
+        if (route.symbol) {
+            ext += `      <mapy:symbol>${this._escapeXml(route.symbol)}</mapy:symbol>\n`;
+        }
+        if (route.name) {
+            ext += `      <mapy:name>${this._escapeXml(route.name)}</mapy:name>\n`;
+        }
+        if (route.ref) {
+            ext += `      <mapy:ref>${this._escapeXml(route.ref)}</mapy:ref>\n`;
+        }
+        if (route.network) {
+            ext += `      <mapy:network>${route.network}</mapy:network>\n`;
+        }
+        if (route.wikidata) {
+            ext += `      <mapy:wikidata>${this._escapeXml(route.wikidata)}</mapy:wikidata>\n`;
+        }
+        if (route.customData) {
+            ext += `      <mapy:customData>${this._escapeXml(route.customData)}</mapy:customData>\n`;
+        }
+        
+        return ext;
+    }
+    
+    /**
      * Escape XML special characters
      * @private
      */
     _escapeXml(text) {
+        if (!text) return '';
         return text.replace(/&/g, '&amp;')
                    .replace(/</g, '&lt;')
                    .replace(/>/g, '&gt;')
@@ -254,21 +303,75 @@ export class GpxStorage extends StorageInterface {
      */
     _parseTrack(trk, filename) {
         const nameEl = trk.getElementsByTagName('name')[0];
-        const name = nameEl ? nameEl.textContent : filename.replace('.gpx', '');
+        const gpxName = nameEl ? nameEl.textContent : null;
         
-        let color = 'red';
+        // Initialize route attributes with defaults
+        // Note: name is null by default, gpxName is only used for backward compatibility
+        let routeAttrs = {
+            routeType: 'Hiking',
+            color: null,
+            customColor: null,
+            symbol: null,
+            name: null,
+            ref: null,
+            network: 'Nwn',
+            wikidata: null,
+            customData: null
+        };
+        
         let oldRouteMode = null;
         let oldWaypoints = [];
+        let isNewFormat = false;
         
         // Check for extensions at trk level
         const trkExtensions = trk.getElementsByTagName('extensions')[0];
         if (trkExtensions) {
-            const displayColorEl = trkExtensions.getElementsByTagName('gpxx:DisplayColor')[0] || 
-                                   trkExtensions.getElementsByTagName('DisplayColor')[0];
-            if (displayColorEl) {
-                const colorValue = displayColorEl.textContent.toLowerCase();
-                if (['red', 'blue', 'green'].includes(colorValue)) {
-                    color = colorValue;
+            // Try to read new format attributes (mapy: namespace)
+            const routeTypeEl = this._getExtensionElement(trkExtensions, 'routeType');
+            if (routeTypeEl) {
+                isNewFormat = true;
+                routeAttrs.routeType = routeTypeEl.textContent || 'Hiking';
+            }
+            
+            // Read all new format attributes
+            const colorEl = this._getExtensionElement(trkExtensions, 'color');
+            if (colorEl) routeAttrs.color = colorEl.textContent;
+            
+            const customColorEl = this._getExtensionElement(trkExtensions, 'customColor');
+            if (customColorEl) routeAttrs.customColor = customColorEl.textContent;
+            
+            const symbolEl = this._getExtensionElement(trkExtensions, 'symbol');
+            if (symbolEl) routeAttrs.symbol = symbolEl.textContent;
+            
+            const nameAttrEl = this._getExtensionElement(trkExtensions, 'name');
+            if (nameAttrEl) routeAttrs.name = nameAttrEl.textContent;
+            
+            const refEl = this._getExtensionElement(trkExtensions, 'ref');
+            if (refEl) routeAttrs.ref = refEl.textContent;
+            
+            const networkEl = this._getExtensionElement(trkExtensions, 'network');
+            if (networkEl) routeAttrs.network = networkEl.textContent;
+            
+            const wikidataEl = this._getExtensionElement(trkExtensions, 'wikidata');
+            if (wikidataEl) routeAttrs.wikidata = wikidataEl.textContent;
+            
+            const customDataEl = this._getExtensionElement(trkExtensions, 'customData');
+            if (customDataEl) routeAttrs.customData = customDataEl.textContent;
+            
+            // Legacy format: DisplayColor
+            if (!isNewFormat) {
+                const displayColorEl = trkExtensions.getElementsByTagName('gpxx:DisplayColor')[0] || 
+                                       trkExtensions.getElementsByTagName('DisplayColor')[0];
+                if (displayColorEl) {
+                    const colorValue = displayColorEl.textContent.toLowerCase();
+                    // Map legacy color to new enum
+                    if (LEGACY_COLOR_MAP[colorValue]) {
+                        routeAttrs.color = LEGACY_COLOR_MAP[colorValue];
+                    } else {
+                        // Unknown color -> Other + customColor
+                        routeAttrs.color = 'Other';
+                        routeAttrs.customColor = displayColorEl.textContent;
+                    }
                 }
             }
             
@@ -293,10 +396,15 @@ export class GpxStorage extends StorageInterface {
             }
         }
         
+        // Use GPX name as fallback if no name in extensions
+        if (!routeAttrs.name && gpxName) {
+            routeAttrs.name = gpxName;
+        }
+        
         const trksegs = trk.getElementsByTagName('trkseg');
         
-        // Check if new format (trkseg has extensions with SegmentMode)
-        let isNewFormat = false;
+        // Check if geometry format uses SegmentMode (for segment parsing)
+        let hasSegmentMode = false;
         if (trksegs.length > 0) {
             const firstTrkseg = trksegs[0];
             const segExt = firstTrkseg.getElementsByTagName('extensions')[0];
@@ -304,25 +412,34 @@ export class GpxStorage extends StorageInterface {
                 const segModeEl = segExt.getElementsByTagName('gpxx:SegmentMode')[0] || 
                                  segExt.getElementsByTagName('SegmentMode')[0];
                 if (segModeEl) {
-                    isNewFormat = true;
+                    hasSegmentMode = true;
                 }
             }
         }
         
-        if (isNewFormat) {
-            return this._parseNewFormat(trksegs, name, color);
+        if (hasSegmentMode) {
+            return this._parseNewFormat(trksegs, routeAttrs);
         } else if (oldRouteMode) {
-            return this._parseOldFormat(trksegs, name, color, oldRouteMode, oldWaypoints);
+            return this._parseOldFormat(trksegs, routeAttrs, oldRouteMode, oldWaypoints);
         } else {
-            return this._parseNoFormat(trksegs, name, color);
+            return this._parseNoFormat(trksegs, routeAttrs);
         }
+    }
+    
+    /**
+     * Get extension element by name (supports multiple namespaces)
+     * @private
+     */
+    _getExtensionElement(extensions, name) {
+        return extensions.getElementsByTagName(`mapy:${name}`)[0] ||
+               extensions.getElementsByTagName(name)[0];
     }
     
     /**
      * Parse new format GPX (with SegmentMode in trkseg extensions)
      * @private
      */
-    _parseNewFormat(trksegs, name, color) {
+    _parseNewFormat(trksegs, routeAttrs) {
         const waypoints = [];
         const importedSegments = [];
         
@@ -456,8 +573,7 @@ export class GpxStorage extends StorageInterface {
         }
         
         return new Route({
-            name,
-            color,
+            ...routeAttrs,
             waypoints,
             segments: importedSegments
         });
@@ -467,7 +583,7 @@ export class GpxStorage extends StorageInterface {
      * Parse old format GPX (RouteMode at trk level)
      * @private
      */
-    _parseOldFormat(trksegs, name, color, oldRouteMode, oldWaypoints) {
+    _parseOldFormat(trksegs, routeAttrs, oldRouteMode, oldWaypoints) {
         const allTrkpts = [];
         for (const trkseg of Array.from(trksegs)) {
             const trkpts = trkseg.getElementsByTagName('trkpt');
@@ -521,8 +637,7 @@ export class GpxStorage extends StorageInterface {
         
         const waypointIndices = waypoints.map((_, i) => i);
         return new Route({
-            name,
-            color,
+            ...routeAttrs,
             waypoints,
             segments: [{
                 mode: oldRouteMode,
@@ -538,7 +653,7 @@ export class GpxStorage extends StorageInterface {
      * Parse GPX with no format info (treat as manual)
      * @private
      */
-    _parseNoFormat(trksegs, name, color) {
+    _parseNoFormat(trksegs, routeAttrs) {
         const geometry = [];
         const waypoints = [];
         
@@ -564,8 +679,7 @@ export class GpxStorage extends StorageInterface {
         
         const waypointIndices = waypoints.map((_, i) => i);
         return new Route({
-            name,
-            color,
+            ...routeAttrs,
             waypoints,
             segments: [{
                 mode: 'manual',

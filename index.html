@@ -144,18 +144,55 @@
                         </div>
                     </div>
                 </div>
-                <div class="form-group">
-                    <label for="route-name">Název</label>
-                    <input type="text" id="route-name" placeholder="Název trasy">
+                
+                <!-- Route attributes form -->
+                <div class="attributes-form">
+                    <div class="form-group">
+                        <label for="route-type">Typ trasy <span class="required">*</span></label>
+                        <select id="route-type"></select>
+                    </div>
+                    <div class="form-group">
+                        <label for="route-ref">Číslo / zkratka</label>
+                        <input type="text" id="route-ref" placeholder="např. 0001">
+                    </div>
+                    <div class="form-group">
+                        <label for="route-name">Název</label>
+                        <input type="text" id="route-name" placeholder="Název trasy">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group form-group-color">
+                            <label for="route-color">Barva</label>
+                            <select id="route-color"></select>
+                        </div>
+                        <div class="form-group form-group-custom-color" id="custom-color-group" style="display: none;">
+                            <label for="route-custom-color">Vlastní</label>
+                            <input type="color" id="route-custom-color" value="#808080">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="route-symbol">Značka</label>
+                        <input type="text" id="route-symbol" placeholder="Popis značení">
+                    </div>
+                    <div class="form-group">
+                        <label for="route-network">Rozsah</label>
+                        <select id="route-network"></select>
+                    </div>
+                    <div class="form-group">
+                        <label for="route-wikidata">Wikidata</label>
+                        <input type="text" id="route-wikidata" placeholder="Q12345">
+                    </div>
+                    
+                    <!-- Custom data (collapsible) -->
+                    <div class="custom-data-section">
+                        <a href="#" class="custom-data-toggle" id="custom-data-toggle">
+                            <span class="toggle-icon">▶</span> Další data
+                        </a>
+                        <div class="custom-data-content" id="custom-data-content" style="display: none;">
+                            <textarea id="route-custom-data" placeholder="Vlastní poznámky..."></textarea>
+                        </div>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="route-color">Barva</label>
-                    <select id="route-color">
-                        <option value="red">Červená</option>
-                        <option value="blue">Modrá</option>
-                        <option value="green">Zelená</option>
-                    </select>
-                </div>
+                
                 <div class="button-row">
                     <button class="success btn-main" id="btn-save-route" disabled>Uložit trasu</button>
                     <button class="muted btn-secondary" id="btn-cancel-route" disabled>Storno</button>

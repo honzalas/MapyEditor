@@ -67,7 +67,9 @@ MapyEditor/
 │       └── PanelManager.js       # Správa pravého panelu
 │
 └── Docs/
-    └── architecture.md           # Tento soubor
+    ├── architecture.md           # Tento soubor
+    ├── specification.md          # Uživatelská specifikace
+    └── gpxStorage.md             # Specifikace GPX formátu
 ```
 
 ---
@@ -76,7 +78,7 @@ MapyEditor/
 
 ### 1. Konfigurační vrstva (`config.js`)
 
-Centralizuje všechny konstanty a nastavení aplikace.
+Centralizuje všechny konstanty a nastavení aplikace, včetně definic enumů.
 
 ```javascript
 export const CONFIG = {
@@ -88,13 +90,38 @@ export const CONFIG = {
     UI: { HOVER_MARKER_DISTANCE_PX: 20 }
 };
 
-export const COLOR_MAP = { red: '#D32F2F', ... };
-export const MARKER_COLORS = { START: '#4CAF50', ... };
+// Enum definice s labels pro UI
+export const ROUTE_TYPE_ENUM = [
+    { value: 'Hiking', label: 'Turistická trasa' },
+    { value: 'Foot', label: 'Pěší trasa' },
+    { value: 'FitnessTrail', label: 'Naučná stezka' },
+    { value: 'ViaFerrata', label: 'Via ferrata' }
+];
+
+export const ROUTE_COLOR_ENUM = [
+    { value: 'Red', label: 'Červená', hex: '#D32F2F' },
+    { value: 'Blue', label: 'Modrá', hex: '#1976D2' },
+    // ... další barvy ...
+    { value: 'Other', label: 'Jiná (vlastní)', hex: null }
+];
+
+export const ROUTE_NETWORK_ENUM = [
+    { value: 'Iwn', label: 'Iwn' },
+    { value: 'Nwn', label: 'Nwn' },
+    { value: 'Lwn', label: 'Lwn' }
+];
+
+export const DEFAULT_ROUTE_COLOR = '#808080';  // Šedá pro null color
+
+// Helper funkce
+export function getEnumItem(enumArray, value) { ... }
+export function getEnumLabel(enumArray, value) { ... }
 ```
 
 **Výhody:**
 - Snadná změna konfigurace na jednom místě
 - Žádné magic numbers v kódu
+- Centrální definice enumů s labels pro UI
 
 ---
 
@@ -104,22 +131,35 @@ Centrální úložiště stavu aplikace s event emitterem pro reaktivní aktuali
 
 #### Hlavní třídy
 
-**Route** - Model trasy
+**Route** - Model trasy s OSM-like atributy
 ```javascript
 class Route {
     id: number
-    name: string
-    color: string
+    
+    // Atributy trasy (viz specification.md pro detaily)
+    routeType: 'Hiking' | 'Foot' | 'FitnessTrail' | 'ViaFerrata'
+    color: 'Red' | 'Blue' | ... | 'Other' | null
+    customColor: string | null
+    symbol: string | null
+    name: string | null
+    ref: string | null
+    network: 'Iwn' | 'Nwn' | 'Lwn'
+    wikidata: string | null
+    customData: string | null
+    
+    // Geometrie
     waypoints: Array<{lat, lon, mode}>
     segments: Array<{mode, geometry, waypointIndices}>
     
     // Virtualizované zobrazovací metody
-    getTitle()      // Vrací zobrazitelný název trasy
-    getSubtitle()   // Vrací dodatečné info (počet bodů)
-    getColor()      // Vrací hex barvu (#D32F2F, #1976D2, #388E3C)
+    getTitle()      // coalesce(ref, name, "noname")
+    getSubtitle()   // český label routeType
+    getColor()      // hex barva z enum/customColor/default
     
-    clone()         // Hluboká kopie pro backup
-    toJSON()        // Serializace
+    // Pomocné metody
+    static getAttributeNames()  // Seznam názvů atributů pro backup
+    clone()                     // Hluboká kopie pro backup
+    toJSON()                    // Serializace
 }
 ```
 
@@ -137,13 +177,14 @@ class DataStore extends EventEmitter {
     altPressed: boolean
     
     // Metody
-    createRoute(name, color): Route
+    createRoute(): Route              // Vytvoří novou trasu s defaults
     addRoute(routeData): Route
     updateRoute(id, updates): Route
     deleteRoute(id): boolean
     activateRoute(id): boolean
     deactivateRoute(): void
     cancelEditing(): void
+    hasChanges(): boolean             // Porovnání s backupem
     
     // Eventy
     'route:created', 'route:added', 'route:deleted'
@@ -179,18 +220,27 @@ class StorageInterface {
 ```
 
 #### GpxStorage (implementace)
+
+> **Detailní specifikace GPX formátu:** viz [gpxStorage.md](gpxStorage.md)
+
 ```javascript
 class GpxStorage extends StorageInterface {
     // Export
     async saveAll(routes) {
-        // Generuje GPX XML a spustí download
+        // Generuje GPX XML s mapy: namespace a spustí download
     }
     
     // Import
     async loadAll(files) {
         // Parsuje GPX soubory, vrací Route[]
-        // Podporuje nový i starý formát
+        // Podporuje nový formát (mapy:) i starý (DisplayColor)
     }
+    
+    // Privátní metody
+    _generateGpx(routes)              // Generuje XML
+    _generateRouteExtensions(route)   // Generuje mapy: extensions
+    _parseTrack(trk, filename)        // Parsuje trk element
+    _getExtensionElement(ext, name)   // Helper pro čtení extensions
     
     // Nepodporované operace (GPX je souborový formát)
     loadRoute() → null
