@@ -3,7 +3,7 @@
  * Handles rendering of routes on the map
  */
 
-import { MARKER_COLORS, MARKER_SIZES } from '../config.js';
+import { MARKER_COLORS, MARKER_SIZES, CONFIG } from '../config.js';
 import { mapManager } from './MapManager.js';
 
 /**
@@ -77,8 +77,8 @@ class RouteRenderer {
                 
                 const lineOptions = {
                     color: color,
-                    weight: isActive ? 7 : 5,
-                    opacity: 0.95
+                    weight: CONFIG.ROUTE_LINE.WEIGHT_NORMAL,
+                    opacity: CONFIG.ROUTE_LINE.OPACITY_NORMAL
                 };
                 
                 // Dashed line for manual segments (only in edit mode)
@@ -188,9 +188,15 @@ class RouteRenderer {
         if (layers && layers.lines) {
             layers.lines.forEach(line => {
                 if (highlight) {
-                    line.setStyle({ weight: 8, opacity: 1 });
+                    line.setStyle({ 
+                        weight: CONFIG.ROUTE_LINE.WEIGHT_HIGHLIGHT, 
+                        opacity: CONFIG.ROUTE_LINE.OPACITY_HIGHLIGHT 
+                    });
                 } else {
-                    line.setStyle({ weight: 5, opacity: 0.95 });
+                    line.setStyle({ 
+                        weight: CONFIG.ROUTE_LINE.WEIGHT_NORMAL, 
+                        opacity: CONFIG.ROUTE_LINE.OPACITY_NORMAL 
+                    });
                 }
             });
         }

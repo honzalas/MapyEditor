@@ -29,6 +29,14 @@ export const CONFIG = {
     UI: {
         HOVER_MARKER_DISTANCE_PX: 20,
         WAYPOINT_PROXIMITY_PX: 20
+    },
+    
+    // Route line styles
+    ROUTE_LINE: {
+        WEIGHT_NORMAL: 5,       // Normal route line width
+        WEIGHT_HIGHLIGHT: 7,    // Highlighted route line width (on hover)
+        OPACITY_NORMAL: 0.95,   // Normal route opacity
+        OPACITY_HIGHLIGHT: 1    // Highlighted route opacity
     }
 };
 
