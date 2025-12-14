@@ -212,6 +212,10 @@ class App {
                 e.preventDefault(); // Prevent menu from appearing
                 this._updateCursor();
             }
+            // ESC key to cancel editing
+            if (e.key === 'Escape' && dataStore.isEditing) {
+                this._cancelEditing();
+            }
         });
         
         document.addEventListener('keyup', (e) => {

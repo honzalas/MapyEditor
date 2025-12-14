@@ -327,9 +327,29 @@ class DataStore extends EventEmitter {
         const route = this.activeRoute;
         if (!route || !this._routeBackup) return false;
         
-        return route.waypoints.length > 0 || 
-            route.name !== this._routeBackup.name ||
-            route.color !== this._routeBackup.color;
+        // Check name and color
+        if (route.name !== this._routeBackup.name || route.color !== this._routeBackup.color) {
+            return true;
+        }
+        
+        // Check waypoints count
+        if (route.waypoints.length !== this._routeBackup.waypoints.length) {
+            return true;
+        }
+        
+        // Check waypoints content (coordinates and modes)
+        for (let i = 0; i < route.waypoints.length; i++) {
+            const wp = route.waypoints[i];
+            const backupWp = this._routeBackup.waypoints[i];
+            
+            if (Math.abs(wp.lat - backupWp.lat) > 0.000001 ||
+                Math.abs(wp.lon - backupWp.lon) > 0.000001 ||
+                wp.mode !== backupWp.mode) {
+                return true;
+            }
+        }
+        
+        return false;
     }
 }
 
