@@ -45,6 +45,7 @@ class PanelManager {
         this._onImport = null;
         this._onExport = null;
         this._onDeleteRoute = null;
+        this._onCopyRoute = null;
     }
     
     /**
@@ -251,6 +252,15 @@ class PanelManager {
             this._routeMenu.classList.toggle('visible');
         });
         
+        // Copy route menu item
+        document.getElementById('menu-copy-route').addEventListener('click', (e) => {
+            e.stopPropagation();
+            this._routeMenu.classList.remove('visible');
+            if (this._onCopyRoute) {
+                this._onCopyRoute();
+            }
+        });
+        
         // Delete route menu item
         document.getElementById('menu-delete-route').addEventListener('click', (e) => {
             e.stopPropagation();
@@ -286,6 +296,7 @@ class PanelManager {
     setImportCallback(callback) { this._onImport = callback; }
     setExportCallback(callback) { this._onExport = callback; }
     setDeleteRouteCallback(callback) { this._onDeleteRoute = callback; }
+    setCopyRouteCallback(callback) { this._onCopyRoute = callback; }
     setSearchChangeCallback(callback) { this._onSearchChange = callback; }
     
     // ==================

@@ -206,6 +206,10 @@ class App {
             this._deleteCurrentRoute();
         });
         
+        panelManager.setCopyRouteCallback(() => {
+            this._copyCurrentRoute();
+        });
+        
         panelManager.setSearchChangeCallback((query) => {
             dataStore.routeSearchQuery = query;
             this._updateRoutesList();
@@ -401,6 +405,51 @@ class App {
         mapManager.removeRouteLayers(routeId);
         dataStore.deleteRoute(routeId);
         hoverMarker.hide();
+        this._updateUI();
+    }
+    
+    _copyCurrentRoute() {
+        const route = dataStore.activeRoute;
+        if (!route) return;
+        
+        // Check if route has minimum waypoints to be saved
+        if (route.waypoints.length < 2) {
+            alert('Trasa musí mít minimálně 2 body pro vytvoření kopie.');
+            return;
+        }
+        
+        // Save (close) the current route
+        const previousActiveId = dataStore.activeRouteId;
+        dataStore.deactivateRoute();
+        hoverMarker.hide();
+        
+        // Render the saved route as inactive
+        const savedRoute = dataStore.getRoute(previousActiveId);
+        if (savedRoute) {
+            routeRenderer.render(savedRoute, false, false);
+        }
+        
+        // Create a copy using the clone method from Route class
+        const copiedRoute = savedRoute.clone();
+        copiedRoute.id = null; // Will be assigned by addRoute
+        
+        // Modify the name to add "(kopie)"
+        if (copiedRoute.name) {
+            copiedRoute.name = copiedRoute.name + ' (kopie)';
+        } else if (copiedRoute.ref) {
+            copiedRoute.name = copiedRoute.ref + ' (kopie)';
+        } else {
+            copiedRoute.name = 'noname (kopie)';
+        }
+        
+        // Add the copied route to the data store
+        const newRoute = dataStore.addRoute(copiedRoute);
+        
+        // Activate the new route for editing
+        dataStore.activateRoute(newRoute.id);
+        routeRenderer.render(newRoute, true, true);
+        
+        panelManager.resetFormState();
         this._updateUI();
     }
     
