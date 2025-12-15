@@ -5,6 +5,7 @@
 
 import { MARKER_COLORS, MARKER_SIZES, CONFIG } from '../config.js';
 import { mapManager } from './MapManager.js';
+import { dataStore } from '../models/DataStore.js';
 
 /**
  * Renderer for routes and waypoint markers
@@ -96,20 +97,22 @@ class RouteRenderer {
                         className: 'route-tooltip'
                     });
                     
+                    // Use dataStore.isEditing to check current global editing state
+                    // (not the captured isEditing value from render time)
                     line.on('mouseover', () => {
-                        if (!isEditing && this._onRouteHover) {
+                        if (!dataStore.isEditing && this._onRouteHover) {
                             this._onRouteHover(route.id, true);
                         }
                     });
                     
                     line.on('mouseout', () => {
-                        if (!isEditing && this._onRouteHover) {
+                        if (!dataStore.isEditing && this._onRouteHover) {
                             this._onRouteHover(route.id, false);
                         }
                     });
                     
                     line.on('click', (e) => {
-                        if (!isEditing && this._onRouteClick) {
+                        if (!dataStore.isEditing && this._onRouteClick) {
                             L.DomEvent.stopPropagation(e);
                             this._onRouteClick(route.id, e.latlng);
                         }
