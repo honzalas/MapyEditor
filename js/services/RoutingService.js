@@ -41,13 +41,13 @@ class RoutingService {
     }
     
     /**
-     * Calculate route between two points with optional waypoints
+     * Calculate route between two points with optional via waypoints
      * @param {Object} start - Start point {lat, lon}
      * @param {Object} end - End point {lat, lon}
-     * @param {Array} waypoints - Array of intermediate waypoints
-     * @returns {Promise<Array|null>} Array of coordinates or null on error
+     * @param {Array} viaPoints - Array of intermediate waypoints [{lat, lon}, ...]
+     * @returns {Promise<Array|null>} Array of coordinates [{lat, lon}, ...] or null on error
      */
-    async calculateRoute(start, end, waypoints = []) {
+    async calculateRoute(start, end, viaPoints = []) {
         this._setLoading(true);
         
         try {
@@ -58,9 +58,9 @@ class RoutingService {
             url.searchParams.set('routeType', CONFIG.ROUTE_TYPE);
             url.searchParams.set('format', 'geojson');
             
-            // Add waypoints (max 15 per API call)
-            if (waypoints.length > 0) {
-                const limitedWaypoints = waypoints.slice(0, CONFIG.MAX_WAYPOINTS_PER_API_CALL);
+            // Add via waypoints (max 15 per API call including start/end)
+            if (viaPoints.length > 0) {
+                const limitedWaypoints = viaPoints.slice(0, CONFIG.MAX_WAYPOINTS_PER_API_CALL - 2);
                 limitedWaypoints.forEach(wp => {
                     url.searchParams.append('waypoints', `${wp.lon},${wp.lat}`);
                 });
@@ -85,44 +85,7 @@ class RoutingService {
             this._setLoading(false);
         }
     }
-    
-    /**
-     * Calculate route for a segment of waypoints
-     * @param {Array} waypoints - All route waypoints
-     * @param {Array} segmentIndices - Indices of waypoints in this segment
-     * @param {Object|null} previousGeometryEnd - End point of previous segment's geometry
-     * @returns {Promise<Array|null>} Array of coordinates or null on error
-     */
-    async calculateRoutingSegment(waypoints, segmentIndices, previousGeometryEnd) {
-        const points = segmentIndices.map(i => waypoints[i]);
-        
-        // Determine start point - either previous geometry end or first waypoint
-        let startPoint;
-        if (previousGeometryEnd && segmentIndices[0] > 0) {
-            startPoint = previousGeometryEnd;
-        } else {
-            startPoint = points[0];
-        }
-        
-        const endPoint = points[points.length - 1];
-        const middlePoints = points.slice(1, -1);
-        
-        const result = await this.calculateRoute(startPoint, endPoint, middlePoints);
-        
-        if (!result) {
-            // Fallback to straight line
-            return [startPoint, endPoint];
-        }
-        
-        return result;
-    }
 }
 
 // Singleton instance
 export const routingService = new RoutingService();
-
-
-
-
-
-

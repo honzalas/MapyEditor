@@ -14,6 +14,8 @@
             <div id="status-bar">Nevybraná trasa</div>
             <div id="map"></div>
             <div id="loading-indicator">Plánuji trasu...</div>
+            
+            <!-- Waypoint context menu -->
             <div id="context-menu" class="context-menu">
                 <div class="context-menu-item delete" id="context-menu-delete">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -22,37 +24,30 @@
                     </svg>
                     Smazat bod
                 </div>
-                <div class="context-menu-item split" id="context-menu-split">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="6" cy="6" r="3"></circle>
-                        <circle cx="6" cy="18" r="3"></circle>
-                        <line x1="20" y1="4" x2="8.12" y2="15.88"></line>
-                        <line x1="14.47" y1="14.48" x2="20" y2="20"></line>
-                        <line x1="8.12" y1="8.12" x2="12" y2="12"></line>
-                    </svg>
-                    Rozdělit trasu
-                </div>
                 <div class="context-menu-separator"></div>
                 <div class="context-menu-item mode-routing" id="context-menu-mode-routing">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <circle cx="12" cy="12" r="10"></circle>
                         <polyline points="12 6 12 12 16 14"></polyline>
                     </svg>
-                    Změnit na plánování
+                    Změnit segment na plánování
                 </div>
                 <div class="context-menu-item mode-manual" id="context-menu-mode-manual">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M12 20h9"></path>
                         <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
                     </svg>
-                    Změnit na ruční
+                    Změnit segment na ruční
                 </div>
             </div>
+            
+            <!-- Routes selection menu -->
             <div id="routes-menu" class="context-menu routes-menu">
                 <div class="routes-menu-header">Trasy v místě:</div>
                 <div id="routes-menu-list" class="routes-menu-list"></div>
             </div>
         </div>
+        
         <div id="right-panel">
             <div class="panel-section">
                 <div class="panel-header">
@@ -109,7 +104,7 @@
                 <button class="secondary" id="btn-close-import" style="width: 100%;">Zavřít</button>
             </div>
 
-            <!-- Routes List Container -->
+            <!-- Routes List Container (shown when not editing) -->
             <div id="routes-list-container">
                 <div class="routes-search">
                     <h3>Seznam tras <span class="routes-count" id="routes-count">0/0</span></h3>
@@ -122,92 +117,144 @@
                 </div>
             </div>
 
-            <div class="panel-section" id="attributes-panel" style="display: none;">
-                <div class="panel-header-row">
-                    <h3>Editace trasy</h3>
-                    <div class="panel-menu-container">
-                        <button class="panel-menu-btn" id="route-menu-btn" title="Menu trasy">
-                            <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
-                                <circle cx="12" cy="5" r="2"></circle>
-                                <circle cx="12" cy="12" r="2"></circle>
-                                <circle cx="12" cy="19" r="2"></circle>
-                            </svg>
-                        </button>
-                        <div class="panel-menu" id="route-menu">
-                            <div class="panel-menu-item" id="menu-copy-route">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            <!-- Edit Panel (shown when editing) -->
+            <div class="panel-section edit-panel" id="attributes-panel" style="display: none;">
+                <!-- Header with buttons at top -->
+                <div class="edit-panel-header">
+                    <div class="panel-header-row">
+                        <h3>Editace trasy</h3>
+                        <div class="panel-menu-container">
+                            <button class="panel-menu-btn" id="route-menu-btn" title="Menu trasy">
+                                <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+                                    <circle cx="12" cy="5" r="2"></circle>
+                                    <circle cx="12" cy="12" r="2"></circle>
+                                    <circle cx="12" cy="19" r="2"></circle>
                                 </svg>
-                                Kopírovat trasu
+                            </button>
+                            <div class="panel-menu" id="route-menu">
+                                <div class="panel-menu-item" id="menu-copy-route">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                    </svg>
+                                    Kopírovat trasu
+                                </div>
+                                <div class="panel-menu-item delete" id="menu-delete-route">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="3 6 5 6 21 6"></polyline>
+                                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                    </svg>
+                                    Smazat trasu
+                                </div>
                             </div>
-                            <div class="panel-menu-item delete" id="menu-delete-route">
+                        </div>
+                    </div>
+                    
+                    <div class="button-row">
+                        <button class="success btn-main" id="btn-save-route" disabled>Uložit trasu</button>
+                        <button class="muted btn-secondary" id="btn-cancel-route" disabled>Storno</button>
+                    </div>
+                </div>
+                
+                <!-- Scrollable content -->
+                <div class="edit-scrollable-content" id="edit-scrollable-content">
+                    <!-- Attributes section -->
+                    <div class="attributes-section">
+                        <h4>Atributy</h4>
+                        <div class="attributes-form">
+                            <div class="form-group">
+                                <label for="route-type">Typ trasy <span class="required">*</span></label>
+                                <select id="route-type"></select>
+                            </div>
+                            <div class="form-group">
+                                <label for="route-ref">Číslo / zkratka</label>
+                                <input type="text" id="route-ref" placeholder="např. 0001">
+                            </div>
+                            <div class="form-group">
+                                <label for="route-name">Název</label>
+                                <input type="text" id="route-name" placeholder="Název trasy">
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group form-group-color">
+                                    <label for="route-color">Barva</label>
+                                    <select id="route-color"></select>
+                                </div>
+                                <div class="form-group form-group-custom-color" id="custom-color-group" style="display: none;">
+                                    <label for="route-custom-color">Vlastní</label>
+                                    <input type="color" id="route-custom-color" value="#808080">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="route-symbol">Značka</label>
+                                <input type="text" id="route-symbol" placeholder="Popis značení">
+                            </div>
+                            <div class="form-group">
+                                <label for="route-network">Rozsah</label>
+                                <select id="route-network"></select>
+                            </div>
+                            <div class="form-group">
+                                <label for="route-wikidata">Wikidata</label>
+                                <input type="text" id="route-wikidata" placeholder="Q12345">
+                            </div>
+                            
+                            <!-- Custom data (collapsible) -->
+                            <div class="custom-data-section">
+                                <a href="#" class="custom-data-toggle" id="custom-data-toggle">
+                                    <span class="toggle-icon">▶</span> Další data
+                                </a>
+                                <div class="custom-data-content" id="custom-data-content" style="display: none;">
+                                    <textarea id="route-custom-data" placeholder="Vlastní poznámky..."></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Segments section -->
+                    <div class="segments-section">
+                        <div class="segments-header">
+                            <h4>Segmenty</h4>
+                            <button class="btn-add-segment" id="btn-add-segment" title="Přidat segment">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                                </svg>
+                                Nový
+                            </button>
+                        </div>
+                        <div class="segments-list" id="segments-list">
+                            <!-- Segments will be populated dynamically -->
+                        </div>
+                        
+                        <!-- Segment context menu -->
+                        <div class="segment-menu" id="segment-menu">
+                            <div class="panel-menu-item" id="menu-segment-to-routing">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <polyline points="12 6 12 12 16 14"></polyline>
+                                </svg>
+                                Změnit na plánování
+                            </div>
+                            <div class="panel-menu-item" id="menu-segment-to-manual">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M12 20h9"></path>
+                                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                                </svg>
+                                Změnit na ruční
+                            </div>
+                            <div class="panel-menu-item delete" id="menu-delete-segment">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <polyline points="3 6 5 6 21 6"></polyline>
                                     <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
                                 </svg>
-                                Smazat trasu
+                                Smazat segment
                             </div>
                         </div>
                     </div>
-                </div>
-                
-                <!-- Route attributes form -->
-                <div class="attributes-form">
-                    <div class="form-group">
-                        <label for="route-type">Typ trasy <span class="required">*</span></label>
-                        <select id="route-type"></select>
-                    </div>
-                    <div class="form-group">
-                        <label for="route-ref">Číslo / zkratka</label>
-                        <input type="text" id="route-ref" placeholder="např. 0001">
-                    </div>
-                    <div class="form-group">
-                        <label for="route-name">Název</label>
-                        <input type="text" id="route-name" placeholder="Název trasy">
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group form-group-color">
-                            <label for="route-color">Barva</label>
-                            <select id="route-color"></select>
-                        </div>
-                        <div class="form-group form-group-custom-color" id="custom-color-group" style="display: none;">
-                            <label for="route-custom-color">Vlastní</label>
-                            <input type="color" id="route-custom-color" value="#808080">
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label for="route-symbol">Značka</label>
-                        <input type="text" id="route-symbol" placeholder="Popis značení">
-                    </div>
-                    <div class="form-group">
-                        <label for="route-network">Rozsah</label>
-                        <select id="route-network"></select>
-                    </div>
-                    <div class="form-group">
-                        <label for="route-wikidata">Wikidata</label>
-                        <input type="text" id="route-wikidata" placeholder="Q12345">
-                    </div>
                     
-                    <!-- Custom data (collapsible) -->
-                    <div class="custom-data-section">
-                        <a href="#" class="custom-data-toggle" id="custom-data-toggle">
-                            <span class="toggle-icon">▶</span> Další data
-                        </a>
-                        <div class="custom-data-content" id="custom-data-content" style="display: none;">
-                            <textarea id="route-custom-data" placeholder="Vlastní poznámky..."></textarea>
-                        </div>
+                    <div class="help-hint">
+                        <div class="help-hint-item">💡 <span class="key">CTRL</span> + klik – přidá plánovaný bod</div>
+                        <div class="help-hint-item">💡 Klikněte na segment pro jeho editaci</div>
                     </div>
-                </div>
-                
-                <div class="button-row">
-                    <button class="success btn-main" id="btn-save-route" disabled>Uložit trasu</button>
-                    <button class="muted btn-secondary" id="btn-cancel-route" disabled>Storno</button>
-                </div>
-                <div class="help-hint">
-                    <div class="help-hint-item">💡 <span class="key">CTRL</span> + klik – přidá plánovaný bod</div>
-                    <div class="help-hint-item">💡 <span class="key">ALT</span> + klik – přidá ruční bod</div>
-                    <div class="help-hint-item">💡 <strong>Pravé tlačítko</strong> – menu bodu</div>
                 </div>
             </div>
         </div>

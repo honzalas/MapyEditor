@@ -1,11 +1,13 @@
 /**
  * MapyEditor - Hover Marker
- * Dynamic marker for adding midpoints to routes
+ * Dynamic marker for adding midpoints to segments
+ * 
+ * Updated for independent segments - only works on active segment
  */
 
 import { CONFIG } from '../config.js';
 import { mapManager } from './MapManager.js';
-import { findClosestPointOnGeometry } from '../services/GeometryUtils.js';
+import { findClosestPointOnSegment } from '../services/GeometryUtils.js';
 
 /**
  * Manages the hover marker for inserting midpoints
@@ -29,7 +31,7 @@ class HoverMarker {
      * Show the hover marker at position
      * @param {number} lat - Latitude
      * @param {number} lon - Longitude
-     * @param {Object} data - Marker data (insertIndex, mode, segmentIndex, etc.)
+     * @param {Object} data - Marker data (insertIndex, segmentIndex, etc.)
      */
     show(lat, lon, data) {
         if (!this._marker) {
@@ -79,21 +81,22 @@ class HoverMarker {
     
     /**
      * Update hover marker position based on mouse location
+     * Only shows on the active segment
      * @param {Object} latlng - Mouse position (Leaflet LatLng)
-     * @param {Object} route - Route object
+     * @param {Object} segment - Active segment object (or null)
+     * @param {number} segmentIndex - Index of active segment
      * @param {boolean} isEditing - Whether we're editing
      */
-    updatePosition(latlng, route, isEditing) {
-        // Only show when editing and have segments
-        if (!isEditing || !route || !route.segments || route.segments.length === 0) {
+    updatePosition(latlng, segment, segmentIndex, isEditing) {
+        // Only show when editing and have an active segment
+        if (!isEditing || !segment || !segment.geometry || segment.geometry.length < 2) {
             this.hide();
             return;
         }
         
-        // Check if mouse is near any existing waypoint
+        // Check if mouse is near any existing waypoint of the active segment
         const mousePoint = mapManager.latLngToContainerPoint(latlng);
-        for (let i = 0; i < route.waypoints.length; i++) {
-            const wp = route.waypoints[i];
+        for (const wp of segment.waypoints) {
             const wpPixels = mapManager.latLngToContainerPoint([wp.lat, wp.lon]);
             const distanceToWp = Math.sqrt(
                 Math.pow(mousePoint.x - wpPixels.x, 2) + 
@@ -107,40 +110,28 @@ class HoverMarker {
             }
         }
         
-        // Find closest point on any segment
-        let closestResult = null;
-        let closestSegmentIndex = -1;
-        let minPixelDistance = Infinity;
+        // Find closest point on active segment geometry
+        const result = findClosestPointOnSegment(latlng, segment);
         
-        for (let segIdx = 0; segIdx < route.segments.length; segIdx++) {
-            const segment = route.segments[segIdx];
-            if (!segment.geometry || segment.geometry.length < 2) continue;
-            
-            const result = findClosestPointOnGeometry(latlng, segment, route.waypoints);
-            if (result && result.point) {
-                // Calculate distance in pixels
-                const pointPixels = mapManager.latLngToContainerPoint([result.point.lat, result.point.lon]);
-                const pixelDistance = Math.sqrt(
-                    Math.pow(mousePoint.x - pointPixels.x, 2) + 
-                    Math.pow(mousePoint.y - pointPixels.y, 2)
-                );
-                
-                if (pixelDistance < minPixelDistance) {
-                    minPixelDistance = pixelDistance;
-                    closestResult = result;
-                    closestSegmentIndex = segIdx;
-                }
-            }
+        if (!result || !result.point) {
+            this.hide();
+            return;
         }
         
+        // Calculate distance in pixels
+        const pointPixels = mapManager.latLngToContainerPoint([result.point.lat, result.point.lon]);
+        const pixelDistance = Math.sqrt(
+            Math.pow(mousePoint.x - pointPixels.x, 2) + 
+            Math.pow(mousePoint.y - pointPixels.y, 2)
+        );
+        
         // Show marker if close enough
-        if (closestResult && minPixelDistance < CONFIG.UI.HOVER_MARKER_DISTANCE_PX) {
-            this.show(closestResult.point.lat, closestResult.point.lon, {
-                lat: closestResult.point.lat,
-                lon: closestResult.point.lon,
-                insertIndex: closestResult.insertIndex,
-                mode: closestResult.mode,
-                segmentIndex: closestSegmentIndex
+        if (pixelDistance < CONFIG.UI.HOVER_MARKER_DISTANCE_PX) {
+            this.show(result.point.lat, result.point.lon, {
+                lat: result.point.lat,
+                lon: result.point.lon,
+                insertIndex: result.insertIndex,
+                segmentIndex: segmentIndex
             });
         } else {
             this.hide();
@@ -158,9 +149,3 @@ class HoverMarker {
 
 // Singleton instance
 export const hoverMarker = new HoverMarker();
-
-
-
-
-
-

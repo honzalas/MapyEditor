@@ -1,6 +1,8 @@
 /**
  * MapyEditor - Geometry Utilities
  * Helper functions for geometric calculations
+ * 
+ * Updated for independent segments - each segment has its own waypoints
  */
 
 /**
@@ -38,7 +40,7 @@ export function projectPointOnSegment(point, p1, p2) {
  */
 export function distanceSquared(p1, p2) {
     const dlat = p1.lat - p2.lat;
-    const dlon = (p1.lng !== undefined ? p1.lng : p1.lon) - p2.lon;
+    const dlon = (p1.lng !== undefined ? p1.lng : p1.lon) - (p2.lng !== undefined ? p2.lng : p2.lon);
     return dlat * dlat + dlon * dlon;
 }
 
@@ -86,47 +88,18 @@ export function findClosestPointOnPolyline(latlng, geometry) {
 }
 
 /**
- * Find geometry indices that correspond to waypoints in a routing segment
- * @param {Object} segment - Segment object
- * @param {Array} waypoints - Route waypoints
- * @returns {Array} Array of geometry indices
+ * Find closest point on segment geometry and determine insert position
+ * For the new independent segment model
+ * @param {Object} latlng - Point to find closest to
+ * @param {Object} segment - Segment object (with own waypoints array)
+ * @returns {Object|null} Result with point, distance, insertIndex
  */
-export function findWaypointGeometryIndices(segment, waypoints) {
-    const indices = [0]; // First waypoint is at geometry index 0
-    
-    // For each intermediate waypoint, find closest geometry point
-    for (let i = 1; i < segment.waypointIndices.length - 1; i++) {
-        const wpIdx = segment.waypointIndices[i];
-        const wp = waypoints[wpIdx];
-        
-        let closestDist = Infinity;
-        let closestIdx = 0;
-        
-        for (let j = 0; j < segment.geometry.length; j++) {
-            const g = segment.geometry[j];
-            const dist = (wp.lat - g.lat) ** 2 + (wp.lon - g.lon) ** 2;
-            if (dist < closestDist) {
-                closestDist = dist;
-                closestIdx = j;
-            }
-        }
-        indices.push(closestIdx);
+export function findClosestPointOnSegment(latlng, segment) {
+    if (!segment.geometry || segment.geometry.length < 2) {
+        return null;
     }
     
-    indices.push(segment.geometry.length - 1); // Last waypoint is at last geometry index
-    return indices;
-}
-
-/**
- * Find closest point on geometry and determine insert position
- * @param {Object} latlng - Point to find closest to
- * @param {Object} segment - Segment object
- * @param {Array} waypoints - Route waypoints
- * @returns {Object} Result with point, geomIndex, distance, insertIndex, mode
- */
-export function findClosestPointOnGeometry(latlng, segment, waypoints) {
-    const geometry = segment.geometry;
-    const result = findClosestPointOnPolyline(latlng, geometry);
+    const result = findClosestPointOnPolyline(latlng, segment.geometry);
     
     if (!result.point) {
         return null;
@@ -134,58 +107,60 @@ export function findClosestPointOnGeometry(latlng, segment, waypoints) {
     
     const closestGeomIndex = result.geomIndex;
     
-    // Determine which waypoint pair this geometry index falls between
+    // Determine where to insert based on segment mode
     let insertIndex;
-    let inheritedMode;
     
     if (segment.mode === 'manual') {
-        // For manual segments:
-        // - If startIndex > 0: geometry[0] = previousGeometryEnd, geometry[i] for i>=1 maps to waypointIndices[i]
-        // - If startIndex === 0: geometry[i] maps directly to waypointIndices[i]
-        const hasPreviousGeometry = segment.startIndex > 0;
-        
-        if (hasPreviousGeometry) {
-            // geometry[0] = previousGeometryEnd (not a waypoint)
-            // geometry[i] for i >= 1 corresponds to waypointIndices[i]
-            if (closestGeomIndex === 0) {
-                // Clicking between previousGeometryEnd and first actual manual waypoint
-                // Insert at position of first manual waypoint (waypointIndices[1])
-                insertIndex = segment.waypointIndices[1];
-            } else {
-                // Clicking between geometry[closestGeomIndex] and geometry[closestGeomIndex+1]
-                insertIndex = segment.waypointIndices[closestGeomIndex] + 1;
-            }
-        } else {
-            // First segment - geometry maps directly to waypoints
-            insertIndex = segment.waypointIndices[closestGeomIndex] + 1;
-        }
-        inheritedMode = 'manual';
+        // For manual segments: geometry = waypoints
+        // Insert after the geometry point (which equals waypoint)
+        insertIndex = closestGeomIndex + 1;
     } else {
-        // For routing segments, find which pair of waypoints this point is between
-        const waypointGeomIndices = findWaypointGeometryIndices(segment, waypoints);
-        
-        // Find which segment of waypoints we're in
-        let wpPairStart = 0;
-        for (let i = 0; i < waypointGeomIndices.length - 1; i++) {
-            if (closestGeomIndex >= waypointGeomIndices[i] && closestGeomIndex < waypointGeomIndices[i + 1]) {
-                wpPairStart = i;
-                break;
-            }
-            wpPairStart = i;
-        }
-        
-        // Insert after this waypoint in the segment
-        insertIndex = segment.waypointIndices[wpPairStart] + 1;
-        inheritedMode = 'routing';
+        // For routing segments: need to find which pair of waypoints this falls between
+        // Find the closest waypoint to the geometry point
+        insertIndex = findWaypointInsertIndex(segment, closestGeomIndex);
     }
     
     return {
         point: result.point,
         geomIndex: closestGeomIndex,
         distance: result.distance,
-        insertIndex: insertIndex,
-        mode: inheritedMode
+        insertIndex: insertIndex
     };
+}
+
+/**
+ * For routing segments, find which waypoint index to insert at
+ * based on geometry index
+ * @param {Object} segment - Segment object
+ * @param {number} geometryIndex - Index in the geometry array
+ * @returns {number} Index where to insert new waypoint
+ */
+function findWaypointInsertIndex(segment, geometryIndex) {
+    if (segment.waypoints.length <= 2) {
+        return 1; // Insert between start and end
+    }
+    
+    const geomPoint = segment.geometry[geometryIndex];
+    
+    // Find which waypoint this geometry point is closest to
+    let minDist = Infinity;
+    let closestWpIndex = 0;
+    
+    for (let i = 0; i < segment.waypoints.length; i++) {
+        const wp = segment.waypoints[i];
+        const dist = Math.pow(wp.lat - geomPoint.lat, 2) + Math.pow(wp.lon - geomPoint.lon, 2);
+        if (dist < minDist) {
+            minDist = dist;
+            closestWpIndex = i;
+        }
+    }
+    
+    // Also check which waypoint comes AFTER this geometry point
+    // by looking at the position in geometry
+    
+    // Simple heuristic: insert after the closest waypoint
+    // But not after the last waypoint
+    return Math.min(closestWpIndex + 1, segment.waypoints.length - 1);
 }
 
 /**
@@ -226,6 +201,8 @@ export function findRoutesAtPoint(latlng, routes, maxDistancePixels, map) {
             }
         }
         
+        if (minDistance === Infinity) continue;
+        
         // Convert coordinate distance to pixels
         const point1 = map.latLngToContainerPoint(latlng);
         const testPoint = L.latLng(latlng.lat + minDistance, latlng.lng);
@@ -246,5 +223,3 @@ export function findRoutesAtPoint(latlng, routes, maxDistancePixels, map) {
     
     return results;
 }
-
-

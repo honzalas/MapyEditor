@@ -2,11 +2,12 @@
  * MapyEditor - GPX Storage
  * Implementation of StorageInterface for GPX file format
  * 
+ * Updated for independent segments - each segment has its own waypoints
  * See Docs/gpxStorage.md for GPX format specification
  */
 
 import { StorageInterface } from './StorageInterface.js';
-import { Route } from '../models/DataStore.js';
+import { Route, Segment } from '../models/DataStore.js';
 import { ROUTE_COLOR_ENUM, LEGACY_COLOR_MAP } from '../config.js';
 
 /**
@@ -36,8 +37,8 @@ export class GpxStorage extends StorageInterface {
      * @returns {Promise<boolean>}
      */
     async saveAll(routes) {
-        // Filter routes with at least 2 waypoints
-        const validRoutes = routes.filter(r => r.waypoints && r.waypoints.length >= 2);
+        // Filter routes with at least one valid segment
+        const validRoutes = routes.filter(r => r.hasValidSegments());
         
         if (validRoutes.length === 0) {
             return false;
@@ -75,47 +76,39 @@ export class GpxStorage extends StorageInterface {
             gpx += this._generateRouteExtensions(route);
             gpx += '    </extensions>\n';
             
-            // Export each segment as a trkseg
-            if (route.segments && route.segments.length > 0) {
-                for (let segIdx = 0; segIdx < route.segments.length; segIdx++) {
-                    const segment = route.segments[segIdx];
-                    gpx += '    <trkseg>\n';
-                    gpx += '      <extensions>\n';
-                    gpx += `        <gpxx:SegmentMode>${segment.mode}</gpxx:SegmentMode>\n`;
-                    
-                    if (segment.mode === 'routing') {
-                        // Save start, end, and waypoints for routing segments
-                        const startWp = route.waypoints[segment.startIndex];
-                        const endWp = route.waypoints[segment.endIndex];
-                        gpx += `        <gpxx:StartPoint lat="${startWp.lat}" lon="${startWp.lon}"/>\n`;
-                        gpx += `        <gpxx:EndPoint lat="${endWp.lat}" lon="${endWp.lon}"/>\n`;
-                        
-                        // Middle waypoints
-                        if (segment.waypointIndices.length > 2) {
-                            gpx += '        <gpxx:Waypoints>\n';
-                            for (let i = 1; i < segment.waypointIndices.length - 1; i++) {
-                                const wp = route.waypoints[segment.waypointIndices[i]];
-                                gpx += `          <gpxx:Waypoint lat="${wp.lat}" lon="${wp.lon}"/>\n`;
-                            }
-                            gpx += '        </gpxx:Waypoints>\n';
-                        }
-                    }
-                    
-                    gpx += '      </extensions>\n';
-                    
-                    // Geometry points
-                    segment.geometry.forEach(coord => {
-                        gpx += `      <trkpt lat="${coord.lat}" lon="${coord.lon}"></trkpt>\n`;
-                    });
-                    
-                    gpx += '    </trkseg>\n';
-                }
-            } else if (route.waypoints.length > 0) {
-                // Fallback: single segment with all waypoints
+            // Export each valid segment as a trkseg
+            for (const segment of route.segments) {
+                if (!segment.isValid()) continue;
+                
                 gpx += '    <trkseg>\n';
-                route.waypoints.forEach(wp => {
-                    gpx += `      <trkpt lat="${wp.lat}" lon="${wp.lon}"></trkpt>\n`;
+                gpx += '      <extensions>\n';
+                gpx += `        <gpxx:SegmentMode>${segment.mode}</gpxx:SegmentMode>\n`;
+                
+                if (segment.mode === 'routing') {
+                    // Save waypoints (control points) for routing segments
+                    const startWp = segment.waypoints[0];
+                    const endWp = segment.waypoints[segment.waypoints.length - 1];
+                    gpx += `        <gpxx:StartPoint lat="${startWp.lat}" lon="${startWp.lon}"/>\n`;
+                    gpx += `        <gpxx:EndPoint lat="${endWp.lat}" lon="${endWp.lon}"/>\n`;
+                    
+                    // Middle waypoints (via points)
+                    if (segment.waypoints.length > 2) {
+                        gpx += '        <gpxx:Waypoints>\n';
+                        for (let i = 1; i < segment.waypoints.length - 1; i++) {
+                            const wp = segment.waypoints[i];
+                            gpx += `          <gpxx:Waypoint lat="${wp.lat}" lon="${wp.lon}"/>\n`;
+                        }
+                        gpx += '        </gpxx:Waypoints>\n';
+                    }
+                }
+                
+                gpx += '      </extensions>\n';
+                
+                // Geometry points (trkpt)
+                segment.geometry.forEach(coord => {
+                    gpx += `      <trkpt lat="${coord.lat}" lon="${coord.lon}"></trkpt>\n`;
                 });
+                
                 gpx += '    </trkseg>\n';
             }
             
@@ -306,7 +299,6 @@ export class GpxStorage extends StorageInterface {
         const gpxName = nameEl ? nameEl.textContent : null;
         
         // Initialize route attributes with defaults
-        // Note: name is null by default, gpxName is only used for backward compatibility
         let routeAttrs = {
             routeType: 'Hiking',
             color: null,
@@ -375,14 +367,14 @@ export class GpxStorage extends StorageInterface {
                 }
             }
             
-            // Check for old format RouteMode
+            // Check for old format RouteMode (single mode for whole route)
             const routeModeEl = trkExtensions.getElementsByTagName('gpxx:RouteMode')[0] || 
                                trkExtensions.getElementsByTagName('RouteMode')[0];
             if (routeModeEl) {
                 oldRouteMode = routeModeEl.textContent.toLowerCase();
             }
             
-            // Check for old format Waypoints
+            // Check for old format Waypoints (for whole route)
             const waypointsEl = trkExtensions.getElementsByTagName('gpxx:Waypoints')[0] || 
                                trkExtensions.getElementsByTagName('Waypoints')[0];
             if (waypointsEl) {
@@ -403,7 +395,7 @@ export class GpxStorage extends StorageInterface {
         
         const trksegs = trk.getElementsByTagName('trkseg');
         
-        // Check if geometry format uses SegmentMode (for segment parsing)
+        // Check if format uses SegmentMode (for segment parsing)
         let hasSegmentMode = false;
         if (trksegs.length > 0) {
             const firstTrkseg = trksegs[0];
@@ -417,13 +409,23 @@ export class GpxStorage extends StorageInterface {
             }
         }
         
+        let segments;
         if (hasSegmentMode) {
-            return this._parseNewFormat(trksegs, routeAttrs);
+            segments = this._parseNewFormat(trksegs);
         } else if (oldRouteMode) {
-            return this._parseOldFormat(trksegs, routeAttrs, oldRouteMode, oldWaypoints);
+            segments = this._parseOldFormat(trksegs, oldRouteMode, oldWaypoints);
         } else {
-            return this._parseNoFormat(trksegs, routeAttrs);
+            segments = this._parseNoFormat(trksegs);
         }
+        
+        if (segments.length === 0) {
+            return null;
+        }
+        
+        return new Route({
+            ...routeAttrs,
+            segments
+        });
     }
     
     /**
@@ -437,19 +439,16 @@ export class GpxStorage extends StorageInterface {
     
     /**
      * Parse new format GPX (with SegmentMode in trkseg extensions)
+     * Each trkseg becomes an independent segment
      * @private
      */
-    _parseNewFormat(trksegs, routeAttrs) {
-        const waypoints = [];
-        const importedSegments = [];
+    _parseNewFormat(trksegs) {
+        const segments = [];
         
-        for (let segIdx = 0; segIdx < trksegs.length; segIdx++) {
-            const trkseg = trksegs[segIdx];
+        for (const trkseg of Array.from(trksegs)) {
             const segExt = trkseg.getElementsByTagName('extensions')[0];
             
             let segMode = 'manual';
-            let startPoint = null;
-            let endPoint = null;
             let segWaypoints = [];
             
             if (segExt) {
@@ -459,34 +458,40 @@ export class GpxStorage extends StorageInterface {
                     segMode = segModeEl.textContent.toLowerCase();
                 }
                 
-                const startEl = segExt.getElementsByTagName('gpxx:StartPoint')[0] || 
-                               segExt.getElementsByTagName('StartPoint')[0];
-                if (startEl) {
-                    startPoint = {
-                        lat: parseFloat(startEl.getAttribute('lat')),
-                        lon: parseFloat(startEl.getAttribute('lon'))
-                    };
-                }
-                
-                const endEl = segExt.getElementsByTagName('gpxx:EndPoint')[0] || 
-                             segExt.getElementsByTagName('EndPoint')[0];
-                if (endEl) {
-                    endPoint = {
-                        lat: parseFloat(endEl.getAttribute('lat')),
-                        lon: parseFloat(endEl.getAttribute('lon'))
-                    };
-                }
-                
-                const wpContainer = segExt.getElementsByTagName('gpxx:Waypoints')[0] || 
-                                   segExt.getElementsByTagName('Waypoints')[0];
-                if (wpContainer) {
-                    const wpEls = wpContainer.getElementsByTagName('gpxx:Waypoint');
-                    const wpEls2 = wpContainer.getElementsByTagName('Waypoint');
-                    const wpArray = wpEls.length > 0 ? wpEls : wpEls2;
-                    segWaypoints = Array.from(wpArray).map(el => ({
-                        lat: parseFloat(el.getAttribute('lat')),
-                        lon: parseFloat(el.getAttribute('lon'))
-                    }));
+                if (segMode === 'routing') {
+                    // Read waypoints from extensions
+                    const startEl = segExt.getElementsByTagName('gpxx:StartPoint')[0] || 
+                                   segExt.getElementsByTagName('StartPoint')[0];
+                    if (startEl) {
+                        segWaypoints.push({
+                            lat: parseFloat(startEl.getAttribute('lat')),
+                            lon: parseFloat(startEl.getAttribute('lon'))
+                        });
+                    }
+                    
+                    // Via waypoints
+                    const wpContainer = segExt.getElementsByTagName('gpxx:Waypoints')[0] || 
+                                       segExt.getElementsByTagName('Waypoints')[0];
+                    if (wpContainer) {
+                        const wpEls = wpContainer.getElementsByTagName('gpxx:Waypoint');
+                        const wpEls2 = wpContainer.getElementsByTagName('Waypoint');
+                        const wpArray = wpEls.length > 0 ? wpEls : wpEls2;
+                        Array.from(wpArray).forEach(el => {
+                            segWaypoints.push({
+                                lat: parseFloat(el.getAttribute('lat')),
+                                lon: parseFloat(el.getAttribute('lon'))
+                            });
+                        });
+                    }
+                    
+                    const endEl = segExt.getElementsByTagName('gpxx:EndPoint')[0] || 
+                                 segExt.getElementsByTagName('EndPoint')[0];
+                    if (endEl) {
+                        segWaypoints.push({
+                            lat: parseFloat(endEl.getAttribute('lat')),
+                            lon: parseFloat(endEl.getAttribute('lon'))
+                        });
+                    }
                 }
             }
             
@@ -497,93 +502,30 @@ export class GpxStorage extends StorageInterface {
                 lon: parseFloat(pt.getAttribute('lon'))
             }));
             
-            // Determine the previous segment info
-            const prevSeg = importedSegments.length > 0 ? importedSegments[importedSegments.length - 1] : null;
-            const boundaryWpIndex = prevSeg ? prevSeg.endIndex : -1;
-            
-            // Build waypoints for this segment
-            if (segMode === 'routing') {
-                if (segIdx === 0) {
-                    // First segment: add startPoint
-                    if (startPoint) {
-                        waypoints.push({ ...startPoint, mode: 'start' });
-                    }
-                }
-                
-                // Add middle waypoints
-                segWaypoints.forEach(wp => {
-                    waypoints.push({ ...wp, mode: 'routing' });
-                });
-                
-                // Add endPoint
-                if (endPoint) {
-                    waypoints.push({ ...endPoint, mode: 'routing' });
-                }
-            } else {
-                // Manual segment: waypoints come from trkpt
-                const startsFromPrevGeom = prevSeg && prevSeg.mode === 'routing';
-                
-                Array.from(trkpts).forEach((pt, ptIdx) => {
-                    // Skip first trkpt if it's previousGeometryEnd
-                    if (ptIdx === 0 && startsFromPrevGeom) {
-                        return;
-                    }
-                    
-                    const lat = parseFloat(pt.getAttribute('lat'));
-                    const lon = parseFloat(pt.getAttribute('lon'));
-                    
-                    // Skip if matches boundary waypoint
-                    if (boundaryWpIndex >= 0) {
-                        const boundaryWp = waypoints[boundaryWpIndex];
-                        if (boundaryWp && 
-                            Math.abs(boundaryWp.lat - lat) < 0.000001 && 
-                            Math.abs(boundaryWp.lon - lon) < 0.000001) {
-                            return;
-                        }
-                    }
-                    
-                    if (waypoints.length === 0) {
-                        waypoints.push({ lat, lon, mode: 'start' });
-                    } else {
-                        waypoints.push({ lat, lon, mode: 'manual' });
-                    }
-                });
+            // For manual segments, waypoints = geometry
+            if (segMode === 'manual' || segWaypoints.length === 0) {
+                segWaypoints = geometry.map(g => ({ lat: g.lat, lon: g.lon }));
+                segMode = 'manual';
             }
             
-            // Build waypointIndices for this segment
-            const startIndex = (segIdx === 0) ? 0 : boundaryWpIndex;
-            const endIndex = waypoints.length - 1;
-            
-            const waypointIndices = [];
-            for (let wi = startIndex; wi <= endIndex; wi++) {
-                waypointIndices.push(wi);
+            if (segWaypoints.length >= 2) {
+                segments.push(new Segment({
+                    mode: segMode,
+                    waypoints: segWaypoints,
+                    geometry: geometry
+                }));
             }
-            
-            importedSegments.push({
-                mode: segMode,
-                startIndex: startIndex,
-                endIndex: endIndex,
-                waypointIndices: waypointIndices,
-                geometry: geometry
-            });
         }
         
-        if (waypoints.length === 0) {
-            return null;
-        }
-        
-        return new Route({
-            ...routeAttrs,
-            waypoints,
-            segments: importedSegments
-        });
+        return segments;
     }
     
     /**
      * Parse old format GPX (RouteMode at trk level)
+     * Creates a single segment with the specified mode
      * @private
      */
-    _parseOldFormat(trksegs, routeAttrs, oldRouteMode, oldWaypoints) {
+    _parseOldFormat(trksegs, oldRouteMode, oldWaypoints) {
         const allTrkpts = [];
         for (const trkseg of Array.from(trksegs)) {
             const trkpts = trkseg.getElementsByTagName('trkpt');
@@ -596,99 +538,69 @@ export class GpxStorage extends StorageInterface {
             lon: parseFloat(pt.getAttribute('lon'))
         }));
         
-        const waypoints = [];
+        let waypoints = [];
         
         if (oldRouteMode === 'manual') {
-            // All trkpt are manual waypoints
-            allTrkpts.forEach((pt, idx) => {
-                waypoints.push({
-                    lat: parseFloat(pt.getAttribute('lat')),
-                    lon: parseFloat(pt.getAttribute('lon')),
-                    mode: idx === 0 ? 'start' : 'manual'
-                });
-            });
+            // All trkpt are waypoints
+            waypoints = geometry.map(g => ({ lat: g.lat, lon: g.lon }));
         } else if (oldRouteMode === 'routing') {
-            // First trkpt is start, last is end, waypoints from extensions
+            // First and last trkpt + waypoints from extensions
             if (allTrkpts.length > 0) {
                 waypoints.push({
                     lat: parseFloat(allTrkpts[0].getAttribute('lat')),
-                    lon: parseFloat(allTrkpts[0].getAttribute('lon')),
-                    mode: 'start'
+                    lon: parseFloat(allTrkpts[0].getAttribute('lon'))
                 });
                 
                 oldWaypoints.forEach(wp => {
-                    waypoints.push({ ...wp, mode: 'routing' });
+                    waypoints.push({ lat: wp.lat, lon: wp.lon });
                 });
                 
                 if (allTrkpts.length > 1) {
                     const lastPt = allTrkpts[allTrkpts.length - 1];
                     waypoints.push({
                         lat: parseFloat(lastPt.getAttribute('lat')),
-                        lon: parseFloat(lastPt.getAttribute('lon')),
-                        mode: 'routing'
+                        lon: parseFloat(lastPt.getAttribute('lon'))
                     });
                 }
             }
         }
         
-        if (waypoints.length === 0) {
-            return null;
+        if (waypoints.length < 2) {
+            return [];
         }
         
-        const waypointIndices = waypoints.map((_, i) => i);
-        return new Route({
-            ...routeAttrs,
-            waypoints,
-            segments: [{
-                mode: oldRouteMode,
-                startIndex: 0,
-                endIndex: waypoints.length - 1,
-                waypointIndices: waypointIndices,
-                geometry: geometry
-            }]
-        });
+        return [new Segment({
+            mode: oldRouteMode,
+            waypoints: waypoints,
+            geometry: geometry
+        })];
     }
     
     /**
      * Parse GPX with no format info (treat as manual)
+     * Each trkseg becomes a manual segment
      * @private
      */
-    _parseNoFormat(trksegs, routeAttrs) {
-        const geometry = [];
-        const waypoints = [];
+    _parseNoFormat(trksegs) {
+        const segments = [];
         
         for (const trkseg of Array.from(trksegs)) {
             const trkpts = trkseg.getElementsByTagName('trkpt');
-            Array.from(trkpts).forEach((pt) => {
-                const lat = parseFloat(pt.getAttribute('lat'));
-                const lon = parseFloat(pt.getAttribute('lon'));
-                
-                geometry.push({ lat, lon });
-                
-                if (waypoints.length === 0) {
-                    waypoints.push({ lat, lon, mode: 'start' });
-                } else {
-                    waypoints.push({ lat, lon, mode: 'manual' });
-                }
-            });
+            const waypoints = Array.from(trkpts).map(pt => ({
+                lat: parseFloat(pt.getAttribute('lat')),
+                lon: parseFloat(pt.getAttribute('lon'))
+            }));
+            
+            if (waypoints.length >= 2) {
+                segments.push(new Segment({
+                    mode: 'manual',
+                    waypoints: waypoints,
+                    geometry: waypoints.map(wp => ({ lat: wp.lat, lon: wp.lon }))
+                }));
+            }
         }
         
-        if (waypoints.length === 0) {
-            return null;
-        }
-        
-        const waypointIndices = waypoints.map((_, i) => i);
-        return new Route({
-            ...routeAttrs,
-            waypoints,
-            segments: [{
-                mode: 'manual',
-                startIndex: 0,
-                endIndex: waypoints.length - 1,
-                waypointIndices: waypointIndices,
-                geometry: geometry
-            }]
-        });
+        return segments;
     }
     
     // ==================
@@ -713,5 +625,3 @@ export class GpxStorage extends StorageInterface {
 
 // Singleton instance
 export const gpxStorage = new GpxStorage();
-
-

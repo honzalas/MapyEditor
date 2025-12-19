@@ -1,6 +1,8 @@
 /**
  * MapyEditor - Main Application
  * Entry point that wires together all layers
+ * 
+ * Updated for independent segments
  */
 
 // Configuration
@@ -85,7 +87,7 @@ class App {
     
     _setupRendererCallbacks() {
         routeRenderer.setRouteClickCallback((routeId, latlng) => {
-            // Detekce všech tras v místě kliku
+            // Detect all routes at click point
             const routeResults = findRoutesAtPoint(
                 latlng,
                 dataStore.routes,
@@ -94,13 +96,12 @@ class App {
             );
             
             if (routeResults.length === 0) {
-                // Žádná trasa (nemělo by nastat, ale pro jistotu)
                 return;
             } else if (routeResults.length === 1) {
-                // Pouze jedna trasa - rovnou otevřít edit
+                // Single route - open directly
                 this._activateRouteWithBestFit(routeResults[0].route.id);
             } else {
-                // Více tras - zobrazit menu
+                // Multiple routes - show menu
                 const pixel = mapManager.latLngToContainerPoint(latlng);
                 routesMenu.show(pixel.x, pixel.y, routeResults);
             }
@@ -112,17 +113,28 @@ class App {
             }
         });
         
-        routeRenderer.setMarkerDragEndCallback(async (routeId, waypointIndex, latlng) => {
+        routeRenderer.setSegmentClickCallback((routeId, segmentIndex, latlng) => {
+            // Switch to editing this segment
+            if (dataStore.activeRouteId === routeId && dataStore.isEditing) {
+                this._switchToSegment(segmentIndex);
+            }
+        });
+        
+        routeRenderer.setMarkerDragEndCallback(async (routeId, segmentIndex, waypointIndex, latlng) => {
             const route = dataStore.getRoute(routeId);
-            if (route) {
-                route.waypoints[waypointIndex].lat = latlng.lat;
-                route.waypoints[waypointIndex].lon = latlng.lng;
-                await routeCalculator.smartRecalculate(route, { operation: 'move', waypointIndex });
-                routeRenderer.render(route, true, dataStore.isEditing);
+            if (route && route.segments[segmentIndex]) {
+                const segment = route.segments[segmentIndex];
+                await routeCalculator.moveWaypoint(segment, waypointIndex, latlng.lat, latlng.lng);
+                this._renderActiveRoute();
             }
         });
         
         routeRenderer.setMarkerContextMenuCallback((pixel, data) => {
+            // Add waypoint count to data for mode change validation
+            const route = dataStore.activeRoute;
+            if (route && route.segments[data.segmentIndex]) {
+                data.waypointCount = route.segments[data.segmentIndex].waypoints.length;
+            }
             contextMenu.show(pixel.x, pixel.y, data);
         });
     }
@@ -130,19 +142,13 @@ class App {
     _setupContextMenuCallbacks() {
         contextMenu.setDeleteCallback(async (data) => {
             if (data.type === 'waypoint') {
-                await this._deleteWaypoint(data.index);
-            }
-        });
-        
-        contextMenu.setSplitCallback(async (data) => {
-            if (data.type === 'waypoint') {
-                await this._splitRoute(data.index);
+                await this._deleteWaypoint(data.segmentIndex, data.waypointIndex);
             }
         });
         
         contextMenu.setModeChangeCallback(async (data, newMode) => {
             if (data.type === 'waypoint') {
-                await this._changeWaypointMode(data.index, newMode);
+                await this._changeSegmentMode(data.segmentIndex, newMode);
             }
         });
     }
@@ -180,7 +186,7 @@ class App {
                 route[attr] = value;
                 // Re-render if color-related attribute changed
                 if (attr === 'color' || attr === 'customColor') {
-                    routeRenderer.render(route, true, dataStore.isEditing);
+                    this._renderActiveRoute();
                 }
                 this._updateUI();
             }
@@ -214,13 +220,31 @@ class App {
             dataStore.routeSearchQuery = query;
             this._updateRoutesList();
         });
+        
+        // Segment callbacks
+        panelManager.setSegmentClickCallback((segmentIndex) => {
+            this._switchToSegment(segmentIndex);
+        });
+        
+        panelManager.setAddSegmentCallback(() => {
+            this._addNewSegment();
+        });
+        
+        panelManager.setDeleteSegmentCallback((segmentIndex) => {
+            this._deleteSegment(segmentIndex);
+        });
+        
+        panelManager.setChangeSegmentModeCallback(async (segmentIndex, newMode) => {
+            await this._changeSegmentMode(segmentIndex, newMode);
+        });
     }
     
     _setupMapEventHandlers() {
         // Mouse move for hover marker
         mapManager.on('mousemove', (e) => {
-            const route = dataStore.activeRoute;
-            hoverMarker.updatePosition(e.latlng, route, dataStore.isEditing);
+            const segment = dataStore.activeSegment;
+            const segmentIndex = dataStore.activeSegmentIndex;
+            hoverMarker.updatePosition(e.latlng, segment, segmentIndex, dataStore.isEditing);
         });
         
         // Map click for adding waypoints
@@ -289,7 +313,7 @@ class App {
         dataStore.on('route:added', () => this._updateRoutesList());
         dataStore.on('route:deleted', () => this._updateRoutesList());
         dataStore.on('routes:loaded', () => {
-            routeRenderer.renderAll(dataStore.routes, dataStore.activeRouteId, dataStore.isEditing);
+            routeRenderer.renderAll(dataStore.routes, dataStore.activeRouteId, dataStore.isEditing, dataStore.activeSegmentIndex);
             this._updateRoutesList();
         });
         dataStore.on('search:changed', () => this._updateRoutesList());
@@ -304,7 +328,7 @@ class App {
         
         const route = dataStore.createRoute();
         dataStore.activateRoute(route.id);
-        routeRenderer.render(route, true, true);
+        this._renderActiveRoute();
         panelManager.resetFormState();
         this._updateUI();
     }
@@ -319,17 +343,21 @@ class App {
         if (previousActiveId && previousActiveId !== routeId) {
             const prevRoute = dataStore.getRoute(previousActiveId);
             if (prevRoute) {
-                routeRenderer.render(prevRoute, false, false);
+                routeRenderer.render(prevRoute, false, false, null);
             }
         }
         
         const route = dataStore.getRoute(routeId);
         if (route) {
-            routeRenderer.render(route, true, true);
+            this._renderActiveRoute();
             
-            // Fit bounds
-            if (route.waypoints.length > 0) {
-                mapManager.fitBounds(route.waypoints);
+            // Fit bounds to all segments
+            const allCoords = [];
+            route.segments.forEach(seg => {
+                seg.waypoints.forEach(wp => allCoords.push(wp));
+            });
+            if (allCoords.length > 0) {
+                mapManager.fitBounds(allCoords);
             }
         }
         
@@ -337,10 +365,57 @@ class App {
         this._updateUI();
     }
     
+    _switchToSegment(segmentIndex) {
+        if (!dataStore.isEditing) return;
+        
+        // Hide hover marker to prevent accidental midpoint insertion
+        hoverMarker.hide();
+        
+        dataStore.setActiveSegment(segmentIndex);
+        this._renderActiveRoute();
+        this._updateUI();
+    }
+    
+    _addNewSegment() {
+        if (!dataStore.isEditing) return;
+        
+        dataStore.addNewSegment('routing');
+        this._renderActiveRoute();
+        this._updateUI();
+    }
+    
+    _deleteSegment(segmentIndex) {
+        if (!dataStore.isEditing) return;
+        
+        const route = dataStore.activeRoute;
+        if (!route) return;
+        
+        const segment = route.segments[segmentIndex];
+        const segmentName = segment ? `Segment ${segmentIndex + 1}` : 'Segment';
+        
+        if (!confirm(`Opravdu chcete smazat ${segmentName}?`)) {
+            return;
+        }
+        
+        dataStore.deleteSegment(segmentIndex);
+        this._renderActiveRoute();
+        this._updateUI();
+    }
+    
     _saveRoute() {
         const route = dataStore.activeRoute;
-        if (route && route.waypoints.length < 2) {
-            alert('Trasa musí mít minimálně 2 body.');
+        if (!route) {
+            dataStore.deactivateRoute();
+            this._updateUI();
+            return;
+        }
+        
+        // Remove invalid segments
+        route.removeInvalidSegments();
+        
+        // Check if there are any valid segments
+        if (!route.hasValidSegments()) {
+            alert('Trasa musí mít alespoň jeden segment s minimálně 2 body.');
             return;
         }
         
@@ -349,9 +424,9 @@ class App {
         hoverMarker.hide();
         
         if (previousActiveId) {
-            const route = dataStore.getRoute(previousActiveId);
-            if (route) {
-                routeRenderer.render(route, false, false);
+            const savedRoute = dataStore.getRoute(previousActiveId);
+            if (savedRoute) {
+                routeRenderer.render(savedRoute, false, false, null);
             }
         }
         
@@ -374,7 +449,7 @@ class App {
         }
         
         const routeId = dataStore.activeRouteId;
-        const wasNewRoute = !dataStore.routeBackup || dataStore.routeBackup.waypoints.length < 2;
+        const wasNewRoute = !dataStore.routeBackup || !dataStore.routeBackup.hasValidSegments();
         
         dataStore.cancelEditing();
         hoverMarker.hide();
@@ -386,7 +461,7 @@ class App {
             // Route was restored
             const restoredRoute = dataStore.getRoute(routeId);
             if (restoredRoute) {
-                routeRenderer.render(restoredRoute, false, false);
+                routeRenderer.render(restoredRoute, false, false, null);
             }
         }
         
@@ -397,7 +472,8 @@ class App {
         const route = dataStore.activeRoute;
         if (!route) return;
         
-        if (!confirm(`Opravdu chcete smazat trasu "${route.name}"?`)) {
+        const title = route.getTitle();
+        if (!confirm(`Opravdu chcete smazat trasu "${title}"?`)) {
             return;
         }
         
@@ -412,13 +488,14 @@ class App {
         const route = dataStore.activeRoute;
         if (!route) return;
         
-        // Check if route has minimum waypoints to be saved
-        if (route.waypoints.length < 2) {
-            alert('Trasa musí mít minimálně 2 body pro vytvoření kopie.');
+        // Check if route has any valid segments
+        if (!route.hasValidSegments()) {
+            alert('Trasa musí mít alespoň jeden segment s minimálně 2 body pro vytvoření kopie.');
             return;
         }
         
         // Save (close) the current route
+        route.removeInvalidSegments();
         const previousActiveId = dataStore.activeRouteId;
         dataStore.deactivateRoute();
         hoverMarker.hide();
@@ -426,14 +503,14 @@ class App {
         // Render the saved route as inactive
         const savedRoute = dataStore.getRoute(previousActiveId);
         if (savedRoute) {
-            routeRenderer.render(savedRoute, false, false);
+            routeRenderer.render(savedRoute, false, false, null);
         }
         
-        // Create a copy using the clone method from Route class
+        // Create a copy
         const copiedRoute = savedRoute.clone();
-        copiedRoute.id = null; // Will be assigned by addRoute
+        copiedRoute.id = null;
         
-        // Modify the name to add "(kopie)"
+        // Modify the name
         if (copiedRoute.name) {
             copiedRoute.name = copiedRoute.name + ' (kopie)';
         } else if (copiedRoute.ref) {
@@ -442,82 +519,66 @@ class App {
             copiedRoute.name = 'noname (kopie)';
         }
         
-        // Add the copied route to the data store
+        // Add the copied route
         const newRoute = dataStore.addRoute(copiedRoute);
         
-        // Activate the new route for editing
+        // Activate the new route
         dataStore.activateRoute(newRoute.id);
-        routeRenderer.render(newRoute, true, true);
+        this._renderActiveRoute();
         
         panelManager.resetFormState();
         this._updateUI();
     }
     
-    async _deleteWaypoint(index) {
+    // ==================
+    // WAYPOINT OPERATIONS
+    // ==================
+    
+    async _deleteWaypoint(segmentIndex, waypointIndex) {
         const route = dataStore.activeRoute;
         if (!route) return;
         
-        if (route.waypoints.length <= 2) {
-            alert('Trasa musí mít minimálně 2 body.');
+        const segment = route.segments[segmentIndex];
+        if (!segment) return;
+        
+        // Check if this would leave segment with less than 2 waypoints
+        if (segment.waypoints.length <= 2) {
+            // Ask to delete the whole segment instead
+            if (confirm('Smazáním tohoto bodu by segment měl méně než 2 body. Chcete smazat celý segment?')) {
+                this._deleteSegment(segmentIndex);
+            }
             return;
         }
         
-        route.waypoints.splice(index, 1);
-        await routeCalculator.smartRecalculate(route, { operation: 'delete' });
-        routeRenderer.render(route, true, true);
+        await routeCalculator.deleteWaypoint(segment, waypointIndex);
+        this._renderActiveRoute();
         this._updateUI();
     }
     
-    async _splitRoute(index) {
+    async _changeSegmentMode(segmentIndex, newMode) {
         const route = dataStore.activeRoute;
         if (!route) return;
         
-        if (index === 0 || index === route.waypoints.length - 1) {
-            alert('Nelze rozdělit trasu na prvním nebo posledním bodě.');
-            return;
+        const segment = route.segments[segmentIndex];
+        if (!segment) return;
+        
+        if (newMode === 'routing') {
+            // Check waypoint limit
+            if (segment.waypoints.length > CONFIG.MAX_WAYPOINTS_PER_API_CALL) {
+                alert(`Segment má více než ${CONFIG.MAX_WAYPOINTS_PER_API_CALL} bodů a nelze ho změnit na plánovaný.`);
+                return;
+            }
+            
+            const success = await routeCalculator.changeToRouting(segment);
+            if (!success) {
+                alert('Nepodařilo se změnit segment na plánovaný.');
+                return;
+            }
+        } else {
+            routeCalculator.changeToManual(segment);
         }
         
-        // Create second route with waypoints from split point
-        const wp2 = route.waypoints.slice(index);
-        wp2[0] = { ...wp2[0], mode: 'start' };
-        
-        // Truncate original route
-        route.waypoints = route.waypoints.slice(0, index + 1);
-        
-        // Recalculate original route
-        await routeCalculator.recalculateRouteGeometry(route);
-        
-        // Create and calculate new route (copy attributes from original)
-        const newRoute = dataStore.createRoute();
-        // Copy all attributes from original route
-        newRoute.routeType = route.routeType;
-        newRoute.color = route.color;
-        newRoute.customColor = route.customColor;
-        newRoute.symbol = route.symbol;
-        newRoute.name = route.name ? route.name + ' (2)' : null;
-        newRoute.ref = route.ref ? route.ref + '-2' : null;
-        newRoute.network = route.network;
-        newRoute.wikidata = null;  // Don't copy wikidata
-        newRoute.customData = route.customData;
-        newRoute.waypoints = wp2;
-        await routeCalculator.recalculateRouteGeometry(newRoute);
-        
-        // Exit editing mode
-        dataStore.deactivateRoute();
-        hoverMarker.hide();
-        
-        // Render all routes
-        routeRenderer.renderAll(dataStore.routes, null, false);
-        this._updateUI();
-    }
-    
-    async _changeWaypointMode(index, newMode) {
-        const route = dataStore.activeRoute;
-        if (!route || index === 0) return;
-        
-        route.waypoints[index].mode = newMode;
-        await routeCalculator.recalculateRouteGeometry(route);
-        routeRenderer.render(route, true, true);
+        this._renderActiveRoute();
         this._updateUI();
     }
     
@@ -525,26 +586,23 @@ class App {
         const route = dataStore.activeRoute;
         if (!route) return;
         
-        const { lat, lon, insertIndex, mode, segmentIndex } = data;
+        const { lat, lon, insertIndex, segmentIndex } = data;
+        const segment = route.segments[segmentIndex];
+        
+        if (!segment) return;
         
         // Validate insert index
-        if (insertIndex < 1 || insertIndex > route.waypoints.length) {
+        if (insertIndex < 0 || insertIndex > segment.waypoints.length) {
             console.error('Invalid insert index:', insertIndex);
             return;
         }
         
-        // Insert the new waypoint
-        route.waypoints.splice(insertIndex, 0, {
-            lat: lat,
-            lon: lon,
-            mode: mode
-        });
-        
         hoverMarker.hide();
         
-        // Recalculate
-        await routeCalculator.smartRecalculate(route, { operation: 'insert', waypointIndex: insertIndex, segmentIndex });
-        routeRenderer.render(route, true, true);
+        // Insert the new waypoint
+        await routeCalculator.insertWaypoint(segment, insertIndex, lat, lon);
+        
+        this._renderActiveRoute();
         this._updateUI();
     }
     
@@ -552,41 +610,25 @@ class App {
         if (!dataStore.isEditing || !dataStore.activeRouteId) return;
         
         const route = dataStore.activeRoute;
-        if (!route) return;
+        const segment = dataStore.activeSegment;
+        if (!route || !segment) return;
         
         const clickedLat = e.latlng.lat;
         const clickedLon = e.latlng.lng;
         
-        if (route.waypoints.length === 0) {
-            // Add start point (no modifier needed)
-            route.waypoints.push({
-                lat: clickedLat,
-                lon: clickedLon,
-                mode: 'start'
-            });
-            routeRenderer.render(route, true, true);
+        if (segment.waypoints.length === 0) {
+            // Add start point (no modifier needed for first point)
+            segment.waypoints.push({ lat: clickedLat, lon: clickedLon });
+            // For single point, no geometry yet
+            this._renderActiveRoute();
             this._updateUI();
         } else if (dataStore.ctrlPressed) {
-            // Add routing waypoint
-            route.waypoints.push({
-                lat: clickedLat,
-                lon: clickedLon,
-                mode: 'routing'
-            });
-            await routeCalculator.smartRecalculate(route, { operation: 'append', waypointIndex: route.waypoints.length - 1 });
-            routeRenderer.render(route, true, true);
-            this._updateUI();
-        } else if (dataStore.altPressed) {
-            // Add manual waypoint
-            route.waypoints.push({
-                lat: clickedLat,
-                lon: clickedLon,
-                mode: 'manual'
-            });
-            await routeCalculator.smartRecalculate(route, { operation: 'append', waypointIndex: route.waypoints.length - 1 });
-            routeRenderer.render(route, true, true);
+            // Add waypoint to end of segment
+            await routeCalculator.addWaypoint(segment, clickedLat, clickedLon);
+            this._renderActiveRoute();
             this._updateUI();
         }
+        // Note: We removed ALT for manual since mode is now per-segment, not per-waypoint
     }
     
     // ==================
@@ -604,13 +646,15 @@ class App {
                 dataStore.addRoute(route);
             });
             
-            routeRenderer.renderAll(dataStore.routes, dataStore.activeRouteId, dataStore.isEditing);
+            routeRenderer.renderAll(dataStore.routes, dataStore.activeRouteId, dataStore.isEditing, dataStore.activeSegmentIndex);
             this._updateRoutesList();
             
             // Fit bounds to all routes
             const allCoords = [];
             dataStore.routes.forEach(route => {
-                route.waypoints.forEach(wp => allCoords.push(wp));
+                route.segments.forEach(seg => {
+                    seg.waypoints.forEach(wp => allCoords.push(wp));
+                });
             });
             if (allCoords.length > 0) {
                 mapManager.fitBounds(allCoords);
@@ -636,10 +680,18 @@ class App {
     // UI UPDATES
     // ==================
     
+    _renderActiveRoute() {
+        const route = dataStore.activeRoute;
+        if (route) {
+            routeRenderer.render(route, true, dataStore.isEditing, dataStore.activeSegmentIndex);
+        }
+    }
+    
     _updateUI() {
         panelManager.updateUI({
             isEditing: dataStore.isEditing,
-            activeRoute: dataStore.activeRoute
+            activeRoute: dataStore.activeRoute,
+            activeSegmentIndex: dataStore.activeSegmentIndex
         });
         
         if (!dataStore.isEditing) {
@@ -654,15 +706,13 @@ class App {
     }
     
     _updateCursor() {
-        const route = dataStore.activeRoute;
+        const segment = dataStore.activeSegment;
         
-        if (dataStore.isEditing && route) {
-            if (route.waypoints.length === 0) {
+        if (dataStore.isEditing && segment) {
+            if (segment.waypoints.length === 0) {
                 mapManager.setCursorMode('add-start-mode');
             } else if (dataStore.ctrlPressed) {
                 mapManager.setCursorMode('add-routing-mode');
-            } else if (dataStore.altPressed) {
-                mapManager.setCursorMode('add-manual-mode');
             } else {
                 mapManager.setCursorMode('default');
             }
@@ -684,5 +734,3 @@ if (document.readyState === 'loading') {
 } else {
     app.initialize();
 }
-
-

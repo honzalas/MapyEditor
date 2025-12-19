@@ -1,6 +1,8 @@
 /**
  * MapyEditor - DataStore
  * Central data store with event emission for reactive updates
+ * 
+ * Updated for independent segments - each segment has its own waypoints
  */
 
 import { 
@@ -46,7 +48,74 @@ class EventEmitter {
 }
 
 /**
- * Route model with OSM-like attributes
+ * Segment model - independent unit with its own waypoints and geometry
+ * 
+ * For routing segments:
+ * - waypoints are control points (start, via points, end)
+ * - geometry is calculated from API (snapped to road network)
+ * 
+ * For manual segments:
+ * - waypoints ARE the geometry (straight lines between them)
+ * - geometry = waypoints
+ */
+export class Segment {
+    constructor(data = {}) {
+        this.mode = data.mode || 'routing';  // 'routing' or 'manual'
+        this.waypoints = data.waypoints || [];  // [{lat, lon}, ...]
+        this.geometry = data.geometry || [];    // [{lat, lon}, ...]
+    }
+    
+    /**
+     * Check if segment is valid (has at least 2 waypoints)
+     * @returns {boolean}
+     */
+    isValid() {
+        return this.waypoints.length >= 2;
+    }
+    
+    /**
+     * Get the start point of the segment
+     * @returns {Object|null} {lat, lon} or null if no waypoints
+     */
+    getStart() {
+        return this.waypoints.length > 0 ? this.waypoints[0] : null;
+    }
+    
+    /**
+     * Get the end point of the segment
+     * @returns {Object|null} {lat, lon} or null if no waypoints
+     */
+    getEnd() {
+        return this.waypoints.length > 0 ? this.waypoints[this.waypoints.length - 1] : null;
+    }
+    
+    /**
+     * Clone the segment
+     * @returns {Segment}
+     */
+    clone() {
+        return new Segment({
+            mode: this.mode,
+            waypoints: this.waypoints.map(wp => ({ ...wp })),
+            geometry: this.geometry.map(g => ({ ...g }))
+        });
+    }
+    
+    /**
+     * Serialize to JSON
+     * @returns {Object}
+     */
+    toJSON() {
+        return {
+            mode: this.mode,
+            waypoints: this.waypoints,
+            geometry: this.geometry
+        };
+    }
+}
+
+/**
+ * Route model with OSM-like attributes and independent segments
  * 
  * Attributes:
  * - routeType: enum (Hiking, Foot, FitnessTrail, ViaFerrata) - required, default: Hiking
@@ -63,7 +132,7 @@ export class Route {
     constructor(data = {}) {
         this.id = data.id || null;
         
-        // New OSM-like attributes
+        // OSM-like attributes
         this.routeType = data.routeType || 'Hiking';
         this.color = data.color || null;
         this.customColor = data.customColor || null;
@@ -74,9 +143,10 @@ export class Route {
         this.wikidata = data.wikidata || null;
         this.customData = data.customData || null;
         
-        // Geometry data
-        this.waypoints = data.waypoints || [];
-        this.segments = data.segments || [];
+        // Segments - each with its own waypoints and geometry
+        this.segments = (data.segments || []).map(seg => 
+            seg instanceof Segment ? seg : new Segment(seg)
+        );
     }
     
     /**
@@ -118,6 +188,73 @@ export class Route {
     }
     
     /**
+     * Get total waypoint count across all segments
+     * @returns {number}
+     */
+    getTotalWaypointCount() {
+        return this.segments.reduce((sum, seg) => sum + seg.waypoints.length, 0);
+    }
+    
+    /**
+     * Get count of valid segments (with at least 2 waypoints)
+     * @returns {number}
+     */
+    getValidSegmentCount() {
+        return this.segments.filter(seg => seg.isValid()).length;
+    }
+    
+    /**
+     * Check if route has any valid segments
+     * @returns {boolean}
+     */
+    hasValidSegments() {
+        return this.getValidSegmentCount() > 0;
+    }
+    
+    /**
+     * Add a new empty segment
+     * @param {string} mode - 'routing' or 'manual', default 'routing'
+     * @returns {number} Index of the new segment
+     */
+    addSegment(mode = 'routing') {
+        const segment = new Segment({ mode });
+        this.segments.push(segment);
+        return this.segments.length - 1;
+    }
+    
+    /**
+     * Remove segment at index
+     * @param {number} index
+     * @returns {boolean} Success
+     */
+    removeSegment(index) {
+        if (index >= 0 && index < this.segments.length) {
+            this.segments.splice(index, 1);
+            return true;
+        }
+        return false;
+    }
+    
+    /**
+     * Get segment at index
+     * @param {number} index
+     * @returns {Segment|null}
+     */
+    getSegment(index) {
+        return this.segments[index] || null;
+    }
+    
+    /**
+     * Remove all invalid segments (less than 2 waypoints)
+     * @returns {number} Number of removed segments
+     */
+    removeInvalidSegments() {
+        const initialCount = this.segments.length;
+        this.segments = this.segments.filter(seg => seg.isValid());
+        return initialCount - this.segments.length;
+    }
+    
+    /**
      * Get all attribute names for comparison/backup
      * @returns {Array<string>}
      */
@@ -125,6 +262,10 @@ export class Route {
         return ['routeType', 'color', 'customColor', 'symbol', 'name', 'ref', 'network', 'wikidata', 'customData'];
     }
     
+    /**
+     * Clone the route (deep copy)
+     * @returns {Route}
+     */
     clone() {
         return new Route({
             id: this.id,
@@ -137,15 +278,14 @@ export class Route {
             network: this.network,
             wikidata: this.wikidata,
             customData: this.customData,
-            waypoints: this.waypoints.map(wp => ({ ...wp })),
-            segments: this.segments.map(seg => ({
-                ...seg,
-                waypointIndices: [...seg.waypointIndices],
-                geometry: seg.geometry.map(g => ({ ...g }))
-            }))
+            segments: this.segments.map(seg => seg.clone())
         });
     }
     
+    /**
+     * Serialize to JSON
+     * @returns {Object}
+     */
     toJSON() {
         return {
             id: this.id,
@@ -158,8 +298,7 @@ export class Route {
             network: this.network,
             wikidata: this.wikidata,
             customData: this.customData,
-            waypoints: this.waypoints,
-            segments: this.segments
+            segments: this.segments.map(seg => seg.toJSON())
         };
     }
 }
@@ -174,6 +313,7 @@ class DataStore extends EventEmitter {
         this._routes = [];
         this._nextRouteId = 1;
         this._activeRouteId = null;
+        this._activeSegmentIndex = null;  // Which segment of active route is being edited
         this._isEditing = false;
         this._routeBackup = null;
         this._routeSearchQuery = '';
@@ -197,6 +337,16 @@ class DataStore extends EventEmitter {
     
     get activeRoute() {
         return this._routes.find(r => r.id === this._activeRouteId) || null;
+    }
+    
+    get activeSegmentIndex() {
+        return this._activeSegmentIndex;
+    }
+    
+    get activeSegment() {
+        const route = this.activeRoute;
+        if (!route || this._activeSegmentIndex === null) return null;
+        return route.getSegment(this._activeSegmentIndex);
     }
     
     get isEditing() {
@@ -266,7 +416,8 @@ class DataStore extends EventEmitter {
     }
     
     /**
-     * Create a new route
+     * Create a new route with one empty segment
+     * @returns {Route}
      */
     createRoute() {
         const route = new Route({
@@ -276,8 +427,7 @@ class DataStore extends EventEmitter {
             name: null,
             ref: null,
             network: 'Nwn',
-            waypoints: [],
-            segments: []
+            segments: [new Segment({ mode: 'routing' })]  // Start with one empty routing segment
         });
         this._routes.push(route);
         this.emit('route:created', route);
@@ -323,6 +473,7 @@ class DataStore extends EventEmitter {
         
         if (this._activeRouteId === id) {
             this._activeRouteId = null;
+            this._activeSegmentIndex = null;
             this._isEditing = false;
             this._routeBackup = null;
         }
@@ -337,6 +488,7 @@ class DataStore extends EventEmitter {
     clearRoutes() {
         this._routes = [];
         this._activeRouteId = null;
+        this._activeSegmentIndex = null;
         this._isEditing = false;
         this._routeBackup = null;
         this.emit('routes:cleared');
@@ -359,6 +511,9 @@ class DataStore extends EventEmitter {
     
     /**
      * Activate a route for editing
+     * Automatically activates the first segment (or creates one if none exist)
+     * @param {number} id - Route ID
+     * @returns {boolean} Success
      */
     activateRoute(id) {
         if (this._isEditing) return false;
@@ -373,18 +528,122 @@ class DataStore extends EventEmitter {
         // Create backup
         this._routeBackup = route.clone();
         
-        this.emit('route:activated', { route, previousActiveId });
+        // Activate first segment or create one if none
+        if (route.segments.length === 0) {
+            route.addSegment('routing');
+        }
+        this._activeSegmentIndex = 0;
+        
+        this.emit('route:activated', { route, previousActiveId, segmentIndex: 0 });
         return true;
     }
     
     /**
-     * Deactivate current route
+     * Switch to editing a different segment of the active route
+     * Discards the current segment if invalid
+     * @param {number} segmentIndex - Index of segment to activate
+     * @returns {boolean} Success
+     */
+    setActiveSegment(segmentIndex) {
+        const route = this.activeRoute;
+        if (!route || !this._isEditing) return false;
+        
+        if (segmentIndex < 0 || segmentIndex >= route.segments.length) return false;
+        
+        // Discard current segment if invalid
+        const currentSegment = this.activeSegment;
+        if (currentSegment && !currentSegment.isValid()) {
+            route.removeSegment(this._activeSegmentIndex);
+            // Adjust index if we removed a segment before the new target
+            if (this._activeSegmentIndex < segmentIndex) {
+                segmentIndex--;
+            }
+        }
+        
+        // Make sure the index is still valid after potential removal
+        if (segmentIndex >= route.segments.length) {
+            segmentIndex = route.segments.length - 1;
+        }
+        if (segmentIndex < 0) {
+            // No segments left - create a new one
+            route.addSegment('routing');
+            segmentIndex = 0;
+        }
+        
+        this._activeSegmentIndex = segmentIndex;
+        this.emit('segment:activated', { route, segmentIndex });
+        return true;
+    }
+    
+    /**
+     * Add a new segment to the active route and activate it
+     * Discards the current segment if invalid
+     * @param {string} mode - 'routing' or 'manual', default 'routing'
+     * @returns {number|null} Index of new segment or null if failed
+     */
+    addNewSegment(mode = 'routing') {
+        const route = this.activeRoute;
+        if (!route || !this._isEditing) return null;
+        
+        // Discard current segment if invalid
+        const currentSegment = this.activeSegment;
+        if (currentSegment && !currentSegment.isValid()) {
+            route.removeSegment(this._activeSegmentIndex);
+        }
+        
+        // Add new segment
+        const newIndex = route.addSegment(mode);
+        this._activeSegmentIndex = newIndex;
+        
+        this.emit('segment:created', { route, segmentIndex: newIndex });
+        return newIndex;
+    }
+    
+    /**
+     * Delete a segment from the active route
+     * If it's the last segment, creates a new empty one
+     * @param {number} segmentIndex - Index of segment to delete
+     * @returns {boolean} Success
+     */
+    deleteSegment(segmentIndex) {
+        const route = this.activeRoute;
+        if (!route || !this._isEditing) return false;
+        
+        if (segmentIndex < 0 || segmentIndex >= route.segments.length) return false;
+        
+        route.removeSegment(segmentIndex);
+        
+        // If no segments left, create a new empty one
+        if (route.segments.length === 0) {
+            route.addSegment('routing');
+            this._activeSegmentIndex = 0;
+        } else {
+            // Adjust active segment index
+            if (this._activeSegmentIndex >= route.segments.length) {
+                this._activeSegmentIndex = route.segments.length - 1;
+            } else if (this._activeSegmentIndex > segmentIndex) {
+                this._activeSegmentIndex--;
+            }
+        }
+        
+        this.emit('segment:deleted', { route, deletedIndex: segmentIndex, newActiveIndex: this._activeSegmentIndex });
+        return true;
+    }
+    
+    /**
+     * Deactivate current route (save mode - keeps changes)
      */
     deactivateRoute() {
         const previousActiveId = this._activeRouteId;
         const route = this.activeRoute;
         
+        // Remove invalid segments before saving
+        if (route) {
+            route.removeInvalidSegments();
+        }
+        
         this._activeRouteId = null;
+        this._activeSegmentIndex = null;
         this._isEditing = false;
         this._routeBackup = null;
         
@@ -401,23 +660,27 @@ class DataStore extends EventEmitter {
             return;
         }
         
-        // Check if this is a new route (backup had no/few waypoints)
-        const isNewRoute = !this._routeBackup || this._routeBackup.waypoints.length < 2;
+        // Check if this is a new route (backup had no valid segments)
+        const isNewRoute = !this._routeBackup || !this._routeBackup.hasValidSegments();
         
         if (isNewRoute) {
             // New route - delete it completely
             this.deleteRoute(this._activeRouteId);
         } else {
-            // Existing route - restore all attributes from backup
+            // Existing route - restore all attributes and segments from backup
             Route.getAttributeNames().forEach(attr => {
                 route[attr] = this._routeBackup[attr];
             });
-            route.waypoints = this._routeBackup.waypoints;
-            route.segments = this._routeBackup.segments;
+            route.segments = this._routeBackup.segments.map(seg => seg.clone());
             this.emit('route:restored', route);
         }
         
-        this.deactivateRoute();
+        this._activeRouteId = null;
+        this._activeSegmentIndex = null;
+        this._isEditing = false;
+        this._routeBackup = null;
+        
+        this.emit('route:deactivated', { route: isNewRoute ? null : route, previousActiveId: route?.id });
     }
     
     /**
@@ -434,20 +697,33 @@ class DataStore extends EventEmitter {
             }
         }
         
-        // Check waypoints count
-        if (route.waypoints.length !== this._routeBackup.waypoints.length) {
+        // Check segments count
+        if (route.segments.length !== this._routeBackup.segments.length) {
             return true;
         }
         
-        // Check waypoints content (coordinates and modes)
-        for (let i = 0; i < route.waypoints.length; i++) {
-            const wp = route.waypoints[i];
-            const backupWp = this._routeBackup.waypoints[i];
+        // Check each segment
+        for (let i = 0; i < route.segments.length; i++) {
+            const seg = route.segments[i];
+            const backupSeg = this._routeBackup.segments[i];
             
-            if (Math.abs(wp.lat - backupWp.lat) > 0.000001 ||
-                Math.abs(wp.lon - backupWp.lon) > 0.000001 ||
-                wp.mode !== backupWp.mode) {
+            if (seg.mode !== backupSeg.mode) {
                 return true;
+            }
+            
+            if (seg.waypoints.length !== backupSeg.waypoints.length) {
+                return true;
+            }
+            
+            // Check waypoints content
+            for (let j = 0; j < seg.waypoints.length; j++) {
+                const wp = seg.waypoints[j];
+                const backupWp = backupSeg.waypoints[j];
+                
+                if (Math.abs(wp.lat - backupWp.lat) > 0.000001 ||
+                    Math.abs(wp.lon - backupWp.lon) > 0.000001) {
+                    return true;
+                }
             }
         }
         
@@ -457,5 +733,3 @@ class DataStore extends EventEmitter {
 
 // Singleton instance
 export const dataStore = new DataStore();
-
-

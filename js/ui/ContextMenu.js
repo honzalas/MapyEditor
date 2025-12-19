@@ -1,7 +1,11 @@
 /**
  * MapyEditor - Context Menu
  * Handles the context menu for waypoint operations
+ * 
+ * Updated for independent segments - mode change affects whole segment
  */
+
+import { CONFIG } from '../config.js';
 
 /**
  * Manages the context menu UI
@@ -11,7 +15,6 @@ class ContextMenu {
         this._element = null;
         this._data = null;
         this._onDelete = null;
-        this._onSplit = null;
         this._onModeChange = null;
     }
     
@@ -26,14 +29,6 @@ class ContextMenu {
             e.stopPropagation();
             if (this._data && this._onDelete) {
                 this._onDelete(this._data);
-            }
-            this.hide();
-        });
-        
-        document.getElementById('context-menu-split').addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (this._data && this._onSplit) {
-                this._onSplit(this._data);
             }
             this.hide();
         });
@@ -69,15 +64,7 @@ class ContextMenu {
     }
     
     /**
-     * Set split callback
-     * @param {Function} callback - (data) => void
-     */
-    setSplitCallback(callback) {
-        this._onSplit = callback;
-    }
-    
-    /**
-     * Set mode change callback
+     * Set mode change callback (changes whole segment mode)
      * @param {Function} callback - (data, newMode) => void
      */
     setModeChangeCallback(callback) {
@@ -88,7 +75,8 @@ class ContextMenu {
      * Show the context menu
      * @param {number} x - X position (pixels)
      * @param {number} y - Y position (pixels)
-     * @param {Object} data - Context data (type, index, mode)
+     * @param {Object} data - Context data 
+     *   { type, routeId, segmentIndex, waypointIndex, segmentMode, waypointCount }
      */
     show(x, y, data) {
         this._data = data;
@@ -96,19 +84,35 @@ class ContextMenu {
         this._element.style.top = y + 'px';
         this._element.style.display = 'block';
         
-        // Show/hide mode change options based on current mode
+        // Show/hide mode change options based on current segment mode
         const routingOption = document.getElementById('context-menu-mode-routing');
         const manualOption = document.getElementById('context-menu-mode-manual');
         
-        if (data.type === 'waypoint' && data.index > 0) {
-            // Not start point, can change mode
-            routingOption.style.display = data.mode === 'routing' ? 'none' : 'flex';
-            manualOption.style.display = data.mode === 'manual' ? 'none' : 'flex';
+        if (data.type === 'waypoint') {
+            // Mode change is for the whole segment - show opposite mode
+            if (data.segmentMode === 'routing') {
+                routingOption.style.display = 'none';
+                manualOption.style.display = 'flex';
+            } else {
+                // Manual mode - can change to routing only if waypoint count <= 15
+                if (data.waypointCount && data.waypointCount > CONFIG.MAX_WAYPOINTS_PER_API_CALL) {
+                    routingOption.style.display = 'none';
+                } else {
+                    routingOption.style.display = 'flex';
+                }
+                manualOption.style.display = 'none';
+            }
         } else {
-            // Start point - hide mode options
+            // Hide mode options for non-waypoint context
             routingOption.style.display = 'none';
             manualOption.style.display = 'none';
         }
+        
+        // Update mode change text to indicate it affects whole segment
+        const routingText = routingOption.querySelector('span') || routingOption.lastChild;
+        const manualText = manualOption.querySelector('span') || manualOption.lastChild;
+        
+        // Text is already in the HTML, just ensure it's clear
     }
     
     /**
@@ -132,9 +136,3 @@ class ContextMenu {
 
 // Singleton instance
 export const contextMenu = new ContextMenu();
-
-
-
-
-
-

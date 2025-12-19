@@ -1,9 +1,11 @@
 /**
  * MapyEditor - Panel Manager
- * Manages the right panel UI (routes list, attributes, import/export)
+ * Manages the right panel UI (routes list, attributes, segments, import/export)
+ * 
+ * Updated for independent segments - includes segment list management
  */
 
-import { ROUTE_TYPE_ENUM, ROUTE_COLOR_ENUM, ROUTE_NETWORK_ENUM } from '../config.js';
+import { ROUTE_TYPE_ENUM, ROUTE_COLOR_ENUM, ROUTE_NETWORK_ENUM, CONFIG } from '../config.js';
 
 /**
  * Manages the right panel UI
@@ -20,6 +22,7 @@ class PanelManager {
         this._importPanel = null;
         this._dropzone = null;
         this._routeMenu = null;
+        this._editScrollableContent = null;
         
         // Form elements
         this._routeTypeSelect = null;
@@ -35,6 +38,11 @@ class PanelManager {
         this._customDataToggle = null;
         this._customDataContent = null;
         
+        // Segment elements
+        this._segmentsList = null;
+        this._addSegmentBtn = null;
+        this._segmentMenu = null;
+        
         // Callbacks
         this._onRouteClick = null;
         this._onRouteHover = null;
@@ -46,6 +54,13 @@ class PanelManager {
         this._onExport = null;
         this._onDeleteRoute = null;
         this._onCopyRoute = null;
+        this._onSearchChange = null;
+        
+        // Segment callbacks
+        this._onSegmentClick = null;
+        this._onAddSegment = null;
+        this._onDeleteSegment = null;
+        this._onChangeSegmentMode = null;
     }
     
     /**
@@ -61,6 +76,7 @@ class PanelManager {
         this._importPanel = document.getElementById('import-panel');
         this._dropzone = document.getElementById('dropzone');
         this._routeMenu = document.getElementById('route-menu');
+        this._editScrollableContent = document.getElementById('edit-scrollable-content');
         
         // Form elements
         this._routeTypeSelect = document.getElementById('route-type');
@@ -75,6 +91,11 @@ class PanelManager {
         this._routeCustomDataTextarea = document.getElementById('route-custom-data');
         this._customDataToggle = document.getElementById('custom-data-toggle');
         this._customDataContent = document.getElementById('custom-data-content');
+        
+        // Segment elements
+        this._segmentsList = document.getElementById('segments-list');
+        this._addSegmentBtn = document.getElementById('btn-add-segment');
+        this._segmentMenu = document.getElementById('segment-menu');
         
         this._populateSelects();
         this._bindEvents();
@@ -273,6 +294,9 @@ class PanelManager {
         // Close route menu on click elsewhere
         document.addEventListener('click', () => {
             this._routeMenu.classList.remove('visible');
+            if (this._segmentMenu) {
+                this._segmentMenu.classList.remove('visible');
+            }
         });
         
         // Search input
@@ -281,6 +305,53 @@ class PanelManager {
                 this._onSearchChange(e.target.value);
             }
         });
+        
+        // Add segment button
+        if (this._addSegmentBtn) {
+            this._addSegmentBtn.addEventListener('click', () => {
+                if (this._onAddSegment) {
+                    this._onAddSegment();
+                }
+            });
+        }
+        
+        // Segment menu items
+        const menuDeleteSegment = document.getElementById('menu-delete-segment');
+        const menuSegmentToRouting = document.getElementById('menu-segment-to-routing');
+        const menuSegmentToManual = document.getElementById('menu-segment-to-manual');
+        
+        if (menuDeleteSegment) {
+            menuDeleteSegment.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this._segmentMenu.classList.remove('visible');
+                const segmentIndex = parseInt(this._segmentMenu.dataset.segmentIndex);
+                if (this._onDeleteSegment && !isNaN(segmentIndex)) {
+                    this._onDeleteSegment(segmentIndex);
+                }
+            });
+        }
+        
+        if (menuSegmentToRouting) {
+            menuSegmentToRouting.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this._segmentMenu.classList.remove('visible');
+                const segmentIndex = parseInt(this._segmentMenu.dataset.segmentIndex);
+                if (this._onChangeSegmentMode && !isNaN(segmentIndex)) {
+                    this._onChangeSegmentMode(segmentIndex, 'routing');
+                }
+            });
+        }
+        
+        if (menuSegmentToManual) {
+            menuSegmentToManual.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this._segmentMenu.classList.remove('visible');
+                const segmentIndex = parseInt(this._segmentMenu.dataset.segmentIndex);
+                if (this._onChangeSegmentMode && !isNaN(segmentIndex)) {
+                    this._onChangeSegmentMode(segmentIndex, 'manual');
+                }
+            });
+        }
     }
     
     // ==================
@@ -298,6 +369,12 @@ class PanelManager {
     setDeleteRouteCallback(callback) { this._onDeleteRoute = callback; }
     setCopyRouteCallback(callback) { this._onCopyRoute = callback; }
     setSearchChangeCallback(callback) { this._onSearchChange = callback; }
+    
+    // Segment callbacks
+    setSegmentClickCallback(callback) { this._onSegmentClick = callback; }
+    setAddSegmentCallback(callback) { this._onAddSegment = callback; }
+    setDeleteSegmentCallback(callback) { this._onDeleteSegment = callback; }
+    setChangeSegmentModeCallback(callback) { this._onChangeSegmentMode = callback; }
     
     // ==================
     // UI UPDATES
@@ -330,9 +407,10 @@ class PanelManager {
      * @param {Object} state - UI state
      * @param {boolean} state.isEditing - Whether we're editing
      * @param {Object|null} state.activeRoute - Active route object
+     * @param {number|null} state.activeSegmentIndex - Index of active segment
      */
     updateUI(state) {
-        const { isEditing, activeRoute } = state;
+        const { isEditing, activeRoute, activeSegmentIndex } = state;
         
         // Disable/enable buttons based on mode
         document.getElementById('btn-create-route').disabled = isEditing;
@@ -342,16 +420,18 @@ class PanelManager {
         if (isEditing && activeRoute) {
             // Update status bar
             const title = activeRoute.getTitle();
-            if (activeRoute.waypoints.length === 0) {
-                this.setStatusText(`Nová trasa: ${title} - klikněte pro start`);
+            const activeSegment = activeRoute.getSegment(activeSegmentIndex);
+            const segmentWpCount = activeSegment ? activeSegment.waypoints.length : 0;
+            
+            if (segmentWpCount === 0) {
+                this.setStatusText(`${title} - Segment ${(activeSegmentIndex || 0) + 1}: klikněte pro start`);
             } else {
-                const wpCount = activeRoute.waypoints.length;
-                this.setStatusText(`Úprava trasy: ${title} (${wpCount} bodů)`);
+                this.setStatusText(`${title} - Segment ${(activeSegmentIndex || 0) + 1} (${segmentWpCount} bodů)`);
             }
             
             // Hide routes list, show attributes panel
             this._routesListContainer.classList.add('hidden');
-            this._attributesPanel.style.display = 'block';
+            this._attributesPanel.style.display = 'flex';
             
             // Fill form with route attributes (only if value differs to preserve focus)
             if (this._routeTypeSelect.value !== (activeRoute.routeType || 'Hiking')) {
@@ -383,7 +463,8 @@ class PanelManager {
                 this._routeCustomDataTextarea.value = activeRoute.customData || '';
             }
             
-            // Note: custom data toggle state is reset only in resetForm()
+            // Update segments list
+            this._updateSegmentsList(activeRoute, activeSegmentIndex);
             
             // Enable save and cancel buttons
             document.getElementById('btn-save-route').disabled = false;
@@ -397,6 +478,102 @@ class PanelManager {
             document.getElementById('btn-save-route').disabled = true;
             document.getElementById('btn-cancel-route').disabled = true;
         }
+    }
+    
+    /**
+     * Update the segments list
+     * @private
+     */
+    _updateSegmentsList(route, activeSegmentIndex) {
+        if (!this._segmentsList) return;
+        
+        this._segmentsList.innerHTML = '';
+        
+        route.segments.forEach((segment, index) => {
+            const segmentItem = document.createElement('div');
+            segmentItem.className = 'segment-item';
+            if (index === activeSegmentIndex) {
+                segmentItem.classList.add('active');
+            }
+            segmentItem.dataset.segmentIndex = index;
+            
+            const segmentInfo = document.createElement('div');
+            segmentInfo.className = 'segment-info';
+            
+            const segmentNumber = document.createElement('span');
+            segmentNumber.className = 'segment-number';
+            segmentNumber.textContent = `${index + 1}.`;
+            
+            const segmentType = document.createElement('span');
+            segmentType.className = 'segment-type';
+            segmentType.textContent = segment.mode === 'routing' ? 'Plánovaný' : 'Ruční';
+            
+            const segmentWpCount = document.createElement('span');
+            segmentWpCount.className = 'segment-wp-count';
+            segmentWpCount.textContent = `(${segment.waypoints.length} bodů)`;
+            
+            segmentInfo.appendChild(segmentNumber);
+            segmentInfo.appendChild(segmentType);
+            segmentInfo.appendChild(segmentWpCount);
+            
+            const menuBtn = document.createElement('button');
+            menuBtn.className = 'segment-menu-btn';
+            menuBtn.innerHTML = '⋮';
+            menuBtn.title = 'Menu segmentu';
+            menuBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this._showSegmentMenu(e, index, segment);
+            });
+            
+            segmentItem.appendChild(segmentInfo);
+            segmentItem.appendChild(menuBtn);
+            
+            // Click to activate segment
+            segmentItem.addEventListener('click', () => {
+                if (this._onSegmentClick && index !== activeSegmentIndex) {
+                    this._onSegmentClick(index);
+                }
+            });
+            
+            this._segmentsList.appendChild(segmentItem);
+        });
+    }
+    
+    /**
+     * Show segment context menu
+     * @private
+     */
+    _showSegmentMenu(event, segmentIndex, segment) {
+        if (!this._segmentMenu) return;
+        
+        // Position menu near the button
+        const rect = event.target.getBoundingClientRect();
+        const panelRect = this._attributesPanel.getBoundingClientRect();
+        
+        this._segmentMenu.style.top = `${rect.bottom - panelRect.top}px`;
+        this._segmentMenu.style.right = '10px';
+        this._segmentMenu.dataset.segmentIndex = segmentIndex;
+        
+        // Show/hide mode change options based on current mode
+        const toRoutingItem = document.getElementById('menu-segment-to-routing');
+        const toManualItem = document.getElementById('menu-segment-to-manual');
+        
+        if (toRoutingItem && toManualItem) {
+            if (segment.mode === 'routing') {
+                toRoutingItem.style.display = 'none';
+                toManualItem.style.display = 'flex';
+            } else {
+                toRoutingItem.style.display = 'flex';
+                toManualItem.style.display = 'none';
+                
+                // Check if can convert to routing (waypoint limit)
+                if (segment.waypoints.length > CONFIG.MAX_WAYPOINTS_PER_API_CALL) {
+                    toRoutingItem.style.display = 'none';
+                }
+            }
+        }
+        
+        this._segmentMenu.classList.add('visible');
     }
     
     /**
@@ -446,7 +623,9 @@ class PanelManager {
             
             const infoDiv = document.createElement('div');
             infoDiv.className = 'route-item-info';
-            infoDiv.textContent = route.getSubtitle();
+            const segmentCount = route.segments.length;
+            const segmentText = segmentCount === 1 ? '1 segment' : `${segmentCount} segmentů`;
+            infoDiv.textContent = `${route.getSubtitle()} • ${segmentText}`;
             
             textDiv.appendChild(nameDiv);
             textDiv.appendChild(infoDiv);
@@ -513,5 +692,3 @@ class PanelManager {
 
 // Singleton instance
 export const panelManager = new PanelManager();
-
-
