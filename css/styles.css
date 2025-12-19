@@ -17,6 +17,173 @@ body {
     height: 100vh;
     overflow: hidden;
     background: #1a1a1a;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ======================
+   TOP TOOLBAR
+   ====================== */
+#top-toolbar {
+    height: 60px;
+    background: #2d2d2d;
+    border-bottom: 1px solid #1a1a1a;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    flex-shrink: 0;
+    z-index: 1000;
+}
+
+.toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+}
+
+.app-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.app-name {
+    font-size: 18px;
+    font-weight: 600;
+    color: #ffffff;
+}
+
+.toolbar-left .version-badge {
+    /* Uses same style as .version-badge */
+}
+
+.source-selector {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.source-label {
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.source-select {
+    background: #3d3d3d;
+    border: 1px solid #4d4d4d;
+    color: #ffffff;
+    padding: 8px 32px 8px 12px;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 12px;
+    min-width: 200px;
+    transition: background-color 0.2s, border-color 0.2s;
+}
+
+.source-select:hover {
+    background-color: #454545;
+    border-color: #5d5d5d;
+}
+
+.source-select:focus {
+    outline: none;
+    border-color: #4CAF50;
+    background-color: #454545;
+}
+
+.toolbar-right {
+    display: flex;
+    align-items: center;
+}
+
+.user-menu-container {
+    position: relative;
+}
+
+.user-menu-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: transparent;
+    border: 1px solid #4d4d4d;
+    color: #ffffff;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.2s, border-color 0.2s;
+}
+
+.user-menu-btn:hover {
+    background: #3d3d3d;
+    border-color: #5d5d5d;
+}
+
+.user-menu-btn .user-icon {
+    flex-shrink: 0;
+}
+
+.user-menu-btn .dropdown-icon {
+    transition: transform 0.2s;
+    flex-shrink: 0;
+}
+
+.user-menu-container.active .user-menu-btn .dropdown-icon {
+    transform: rotate(180deg);
+}
+
+.user-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    background: #2d2d2d;
+    border: 1px solid #1a1a1a;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    min-width: 200px;
+    padding: 8px 0;
+    display: none;
+    z-index: 1001;
+}
+
+.user-menu-container.active .user-menu {
+    display: block;
+}
+
+.user-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    color: #ffffff;
+    text-decoration: none;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.user-menu-item:hover {
+    background: #3d3d3d;
+}
+
+.user-menu-item svg {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+}
+
+.user-menu-separator {
+    height: 1px;
+    background: #1a1a1a;
+    margin: 8px 0;
 }
 
 /* ======================
@@ -24,7 +191,8 @@ body {
    ====================== */
 #app {
     display: flex;
-    height: 100vh;
+    flex: 1;
+    overflow: hidden;
 }
 
 #map-container {
@@ -40,11 +208,39 @@ body {
 #right-panel {
     width: 400px;
     background: #2d2d2d;
-    padding: 20px;
+    padding: 0;
     overflow-y: hidden;
     border-left: 1px solid #1a1a1a;
     display: flex;
     flex-direction: column;
+}
+
+.source-header {
+    padding: 20px 20px 16px 20px;
+    border-bottom: 1px solid #1a1a1a;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.source-header h2 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #ffffff;
+    margin: 0;
+    flex: 1;
+}
+
+.source-header-buttons {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.source-header-buttons button {
+    white-space: nowrap;
 }
 
 /* ======================
@@ -112,11 +308,15 @@ body {
    ====================== */
 .panel-section {
     background: #3a3a3a;
-    padding: 16px;
-    margin-bottom: 16px;
+    padding: 20px;
+    margin: 0 20px 16px 20px;
     border-radius: 8px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.3);
     flex-shrink: 0;
+}
+
+.panel-section:first-of-type {
+    margin-top: 20px;
 }
 
 .panel-section h3 {
@@ -237,6 +437,17 @@ button.secondary {
 
 button.secondary:hover {
     background: #616161;
+}
+
+.btn-compact {
+    padding: 6px 10px !important;
+    font-size: 12px !important;
+    min-width: auto;
+}
+
+.btn-compact svg {
+    width: 12px !important;
+    height: 12px !important;
 }
 
 button.warning {
@@ -843,12 +1054,29 @@ input[type="file"] {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 12px;
 }
 
 .routes-count {
     font-size: 14px;
     color: #888;
     font-weight: normal;
+    margin-left: 2px;
+}
+
+.routes-search h3 button {
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+.btn-icon-only {
+    padding: 6px !important;
+    min-width: auto !important;
+    width: auto !important;
+}
+
+.btn-icon-only svg {
+    margin: 0 !important;
 }
 
 .search-box {

@@ -9,6 +9,64 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 <body>
+    <!-- Top Toolbar -->
+    <div id="top-toolbar">
+        <div class="toolbar-left">
+            <div class="app-title">
+                <span class="app-name">MapyEditor</span>
+                <span class="version-badge">BETA</span>
+            </div>
+            <div class="source-selector">
+                <label for="source-select" class="source-label">Zdroj:</label>
+                <select id="source-select" class="source-select">
+                    <option value="source1" selected>Turistika Rakousko</option>
+                    <option value="source2">Zdroj 2</option>
+                    <option value="source3">Zdroj 3</option>
+                </select>
+            </div>
+        </div>
+        <div class="toolbar-right">
+            <div class="user-menu-container">
+                <button class="user-menu-btn" id="user-menu-btn">
+                    <svg class="user-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="12" cy="7" r="4"></circle>
+                    </svg>
+                    <span class="user-name">Mapový redaktor</span>
+                    <svg class="dropdown-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                </button>
+                <div class="user-menu" id="user-menu">
+                    <a href="About.html" class="user-menu-item" target="_blank">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="16" x2="12" y2="12"></line>
+                            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                        </svg>
+                        O programu
+                    </a>
+                    <div class="user-menu-item" id="user-menu-settings">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="3"></circle>
+                            <path d="M12 1v6m0 6v6M5.64 5.64l4.24 4.24m4.24 4.24l4.24 4.24M1 12h6m6 0h6M5.64 18.36l4.24-4.24m4.24-4.24l4.24-4.24"></path>
+                        </svg>
+                        Nastavení
+                    </div>
+                    <div class="user-menu-separator"></div>
+                    <div class="user-menu-item" id="user-menu-logout">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                            <polyline points="16 17 21 12 16 7"></polyline>
+                            <line x1="21" y1="12" x2="9" y2="12"></line>
+                        </svg>
+                        Odhlásit
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
     <div id="app">
         <div id="map-container">
             <div id="status-bar">Nevybraná trasa</div>
@@ -49,30 +107,16 @@
         </div>
         
         <div id="right-panel">
-            <div class="panel-section">
-                <div class="panel-header">
-                    <div class="panel-header-left">
-                        <div class="panel-header-icon">🗺️</div>
-                        <h3>MapyEditor</h3>
-                        <span class="version-badge">BETA</span>
-                    </div>
-                    <a href="About.html" class="about-link" target="_blank">ℹ️ O programu</a>
-                </div>
-                <div class="toolbar" style="margin-top: 12px;">
-                    <button class="primary" id="btn-create-route" title="Nová trasa">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <line x1="12" y1="5" x2="12" y2="19"></line>
-                            <line x1="5" y1="12" x2="19" y2="12"></line>
-                        </svg>
-                        Nová
-                    </button>
-                    <button class="secondary" id="btn-import-gpx" title="Nahrát GPX">
+            <div class="source-header">
+                <h2>Turistika Rakousko</h2>
+                <div class="source-header-buttons">
+                    <button class="secondary btn-compact" id="btn-import-gpx" title="Nahrát GPX">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
                         </svg>
                         Nahrát
                     </button>
-                    <button class="secondary" id="btn-export-gpx" title="Uložit GPX">
+                    <button class="secondary btn-compact" id="btn-export-gpx" title="Uložit GPX">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
                             <polyline points="17 21 17 13 7 13 7 21"></polyline>
@@ -107,7 +151,15 @@
             <!-- Routes List Container (shown when not editing) -->
             <div id="routes-list-container">
                 <div class="routes-search">
-                    <h3>Seznam tras <span class="routes-count" id="routes-count">0/0</span></h3>
+                    <h3>Seznam tras <span class="routes-count" id="routes-count">0/0</span>
+                        <button class="primary btn-compact btn-icon-only" id="btn-create-route" title="Nová trasa">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="12" y1="5" x2="12" y2="19"></line>
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                            </svg>
+                            Nová trasa
+                        </button>
+                    </h3>
                     <div class="search-box">
                         <input type="text" id="route-search-input" placeholder="Hledat trasu...">
                     </div>

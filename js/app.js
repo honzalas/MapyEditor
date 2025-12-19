@@ -47,6 +47,7 @@ class App {
         panelManager.initialize();
         
         // Set up callbacks
+        this._setupTopToolbar();
         this._setupRoutingServiceCallbacks();
         this._setupRendererCallbacks();
         this._setupContextMenuCallbacks();
@@ -74,6 +75,46 @@ class App {
     // ==================
     // CALLBACK SETUP
     // ==================
+    
+    _setupTopToolbar() {
+        // User menu toggle
+        const userMenuBtn = document.getElementById('user-menu-btn');
+        const userMenu = document.getElementById('user-menu');
+        const userMenuContainer = userMenuBtn?.closest('.user-menu-container');
+        
+        if (userMenuBtn && userMenu && userMenuContainer) {
+            userMenuBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                userMenuContainer.classList.toggle('active');
+            });
+            
+            // Close menu when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!userMenuContainer.contains(e.target)) {
+                    userMenuContainer.classList.remove('active');
+                }
+            });
+            
+            // Prevent menu items from doing anything (prototype)
+            const menuItems = userMenu.querySelectorAll('.user-menu-item');
+            menuItems.forEach(item => {
+                if (item.id === 'user-menu-settings' || item.id === 'user-menu-logout') {
+                    item.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        // Do nothing for prototype
+                    });
+                }
+            });
+        }
+        
+        // Source selector (prototype - no action)
+        const sourceSelect = document.getElementById('source-select');
+        if (sourceSelect) {
+            sourceSelect.addEventListener('change', (e) => {
+                // Do nothing for prototype - just prevent default behavior if needed
+            });
+        }
+    }
     
     _setupRoutingServiceCallbacks() {
         routingService.setLoadingCallback((loading) => {
