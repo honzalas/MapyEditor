@@ -314,7 +314,8 @@ class DataStore extends EventEmitter {
         this._nextRouteId = 1;
         this._activeRouteId = null;
         this._activeSegmentIndex = null;  // Which segment of active route is being edited
-        this._isEditing = false;
+        this._isViewingDetail = false;    // Viewing detail mode (read-only)
+        this._isEditing = false;          // Editing mode
         this._routeBackup = null;
         this._routeSearchQuery = '';
         
@@ -347,6 +348,10 @@ class DataStore extends EventEmitter {
         const route = this.activeRoute;
         if (!route || this._activeSegmentIndex === null) return null;
         return route.getSegment(this._activeSegmentIndex);
+    }
+    
+    get isViewingDetail() {
+        return this._isViewingDetail;
     }
     
     get isEditing() {
@@ -474,6 +479,7 @@ class DataStore extends EventEmitter {
         if (this._activeRouteId === id) {
             this._activeRouteId = null;
             this._activeSegmentIndex = null;
+            this._isViewingDetail = false;
             this._isEditing = false;
             this._routeBackup = null;
         }
@@ -489,6 +495,7 @@ class DataStore extends EventEmitter {
         this._routes = [];
         this._activeRouteId = null;
         this._activeSegmentIndex = null;
+        this._isViewingDetail = false;
         this._isEditing = false;
         this._routeBackup = null;
         this.emit('routes:cleared');
@@ -506,11 +513,72 @@ class DataStore extends EventEmitter {
     }
     
     // ==================
-    // ACTIVE ROUTE / EDITING
+    // ACTIVE ROUTE / DETAIL / EDITING
     // ==================
     
     /**
-     * Activate a route for editing
+     * Open a route in detail view (read-only)
+     * @param {number} id - Route ID
+     * @returns {boolean} Success
+     */
+    openDetail(id) {
+        if (this._isEditing) return false;
+        
+        const route = this.getRoute(id);
+        if (!route) return false;
+        
+        const previousActiveId = this._activeRouteId;
+        this._activeRouteId = id;
+        this._isViewingDetail = true;
+        this._activeSegmentIndex = null;
+        
+        this.emit('route:detailOpened', { route, previousActiveId });
+        return true;
+    }
+    
+    /**
+     * Close detail view and return to list
+     */
+    closeDetail() {
+        if (!this._isViewingDetail) return;
+        
+        const route = this.activeRoute;
+        this._activeRouteId = null;
+        this._isViewingDetail = false;
+        this._activeSegmentIndex = null;
+        
+        this.emit('route:detailClosed', { route });
+    }
+    
+    /**
+     * Start editing the route currently in detail view
+     * Creates a backup and activates first segment
+     * @returns {boolean} Success
+     */
+    startEditing() {
+        if (!this._isViewingDetail || this._isEditing) return false;
+        
+        const route = this.activeRoute;
+        if (!route) return false;
+        
+        this._isViewingDetail = false;
+        this._isEditing = true;
+        
+        // Create backup
+        this._routeBackup = route.clone();
+        
+        // Activate first segment or create one if none
+        if (route.segments.length === 0) {
+            route.addSegment('routing');
+        }
+        this._activeSegmentIndex = 0;
+        
+        this.emit('route:editingStarted', { route, segmentIndex: 0 });
+        return true;
+    }
+    
+    /**
+     * Activate a route for editing (for new routes, bypasses detail)
      * Automatically activates the first segment (or creates one if none exist)
      * @param {number} id - Route ID
      * @returns {boolean} Success
@@ -523,6 +591,7 @@ class DataStore extends EventEmitter {
         
         const previousActiveId = this._activeRouteId;
         this._activeRouteId = id;
+        this._isViewingDetail = false;
         this._isEditing = true;
         
         // Create backup
@@ -631,7 +700,33 @@ class DataStore extends EventEmitter {
     }
     
     /**
-     * Deactivate current route (save mode - keeps changes)
+     * Save editing and return to detail view
+     * @returns {boolean} Success - true if route was saved, false if no valid segments
+     */
+    saveEditing() {
+        const route = this.activeRoute;
+        if (!route || !this._isEditing) return false;
+        
+        // Remove invalid segments before saving
+        route.removeInvalidSegments();
+        
+        // Check if route has any valid segments
+        if (!route.hasValidSegments()) {
+            return false;  // Cannot save - no valid segments
+        }
+        
+        // Switch from editing to detail view
+        this._isEditing = false;
+        this._isViewingDetail = true;
+        this._activeSegmentIndex = null;
+        this._routeBackup = null;
+        
+        this.emit('route:saved', { route });
+        return true;
+    }
+    
+    /**
+     * Deactivate current route completely (for legacy/internal use)
      */
     deactivateRoute() {
         const previousActiveId = this._activeRouteId;
@@ -644,6 +739,7 @@ class DataStore extends EventEmitter {
         
         this._activeRouteId = null;
         this._activeSegmentIndex = null;
+        this._isViewingDetail = false;
         this._isEditing = false;
         this._routeBackup = null;
         
@@ -652,6 +748,8 @@ class DataStore extends EventEmitter {
     
     /**
      * Cancel editing and restore backup
+     * - For new routes: deletes route and goes to list
+     * - For existing routes: restores backup and goes to detail
      */
     cancelEditing() {
         const route = this.activeRoute;
@@ -664,23 +762,24 @@ class DataStore extends EventEmitter {
         const isNewRoute = !this._routeBackup || !this._routeBackup.hasValidSegments();
         
         if (isNewRoute) {
-            // New route - delete it completely
+            // New route - delete it completely and go to list
             this.deleteRoute(this._activeRouteId);
+            // deleteRoute already handles cleanup
         } else {
             // Existing route - restore all attributes and segments from backup
             Route.getAttributeNames().forEach(attr => {
                 route[attr] = this._routeBackup[attr];
             });
             route.segments = this._routeBackup.segments.map(seg => seg.clone());
-            this.emit('route:restored', route);
+            
+            // Go back to detail view
+            this._isEditing = false;
+            this._isViewingDetail = true;
+            this._activeSegmentIndex = null;
+            this._routeBackup = null;
+            
+            this.emit('route:editingCancelled', { route });
         }
-        
-        this._activeRouteId = null;
-        this._activeSegmentIndex = null;
-        this._isEditing = false;
-        this._routeBackup = null;
-        
-        this.emit('route:deactivated', { route: isNewRoute ? null : route, previousActiveId: route?.id });
     }
     
     /**

@@ -70,7 +70,7 @@ Centrální komponenta pro zobrazení a interakci s trasami:
 
 ### 2. Pravý panel
 
-Obsahuje tři hlavní sekce:
+Obsahuje čtyři hlavní sekce (zobrazuje se vždy jen jedna podle aktuálního režimu):
 
 #### A) Hlavní toolbar
 - **Nová** - vytvoří novou trasu s prázdným segmentem
@@ -80,11 +80,27 @@ Obsahuje tři hlavní sekce:
 #### B) Seznam tras (běžný režim)
 - Zobrazuje všechny načtené trasy
 - Vyhledávání tras
-- Kliknutím aktivuje trasu pro editaci
+- Kliknutím otevře detail trasy
 - Hover zvýrazní trasu na mapě
 
-#### C) Panel editace (editační režim)
-- **Hlavička**: Tlačítka "Uložit trasu" a "Storno" + menu trasy
+#### C) Panel detailu trasy (režim zobrazení detailu)
+- **Hlavička**:
+  - **Tlačítko zpět** (vlevo) - šipka doleva, vrací na seznam tras
+  - **Nadpis "Detail trasy"** (uprostřed)
+  - **Menu tlačítko** (vpravo) - tři tečky, obsahuje "Kopírovat trasu" a "Smazat trasu"
+- **Tlačítko "Editovat trasu"** - přepne do editačního režimu
+- **Scrollovatelný obsah** (pouze pro čtení):
+  - Atributy trasy (zobrazení hodnot)
+  - Seznam segmentů (statický, bez možnosti editace)
+
+**Layout hlavičky:**
+- Tlačítko zpět má **pevnou šířku** (ne roztahuje se), je umístěno vlevo
+- Nadpis je uprostřed (flex: 1)
+- Menu tlačítko je vpravo
+- Všechny prvky jsou na jednom řádku pomocí flexbox layoutu
+
+#### D) Panel editace (editační režim)
+- **Hlavička**: Tlačítka "Uložit trasu" a "Storno" (menu trasy bylo přesunuto do detail panelu)
 - **Scrollovatelný obsah**:
   - Formulář atributů trasy
   - Seznam segmentů s možností přidání/úpravy
@@ -101,10 +117,42 @@ Obsahuje tři hlavní sekce:
 
 **Interakce:**
 - **Klik na trasu**: 
-  - Pokud je v místě jen jedna trasa → otevře editaci
+  - Pokud je v místě jen jedna trasa → otevře detail trasy
   - Pokud je více tras → zobrazí menu s výběrem
 - **Pravý klik na mapu**: Zobrazí menu se všemi trasami v místě (pokud existují)
 - **Hover nad trasou**: Zvýrazní trasu na mapě
+
+### Režim detailu trasy (detail viewing mode)
+
+**Vizuální stav:**
+- Aktivní trasa je zvýrazněna na mapě (tlustší čára)
+- Ostatní trasy zůstávají zobrazeny a jsou **kliknutelné** (otevřou svůj detail)
+- Panel zobrazuje read-only informace o trase
+
+**Interakce:**
+- **Klik na jinou trasu** (mapa nebo seznam): Otevře detail této trasy
+- **Tlačítko zpět** nebo **ESC**: Vrátí na seznam tras
+- **Tlačítko "Editovat trasu"**: Přepne do editačního režimu
+- **Menu (tři tečky)**:
+  - **Kopírovat trasu**: Vytvoří kopii a otevře detail nové kopie
+  - **Smazat trasu**: Smaže trasu a vrátí na seznam tras
+
+**Panel detailu:**
+- **Hlavička**:
+  - Tlačítko zpět (vlevo) - ikona šipky doleva, pevná šířka, ne roztahuje se
+  - Nadpis "Detail trasy" (uprostřed)
+  - Menu tlačítko (vpravo) - tři tečky
+- **Obsah**:
+  - Atributy trasy (read-only zobrazení)
+  - Nadpis "Segmenty" - stylovaný šedou barvou (`#9e9e9e`), uppercase, s letter-spacing
+  - Seznam segmentů (statický, bez možnosti editace)
+
+**Přechody:**
+- Seznam tras → Klik na trasu → Detail trasy
+- Detail trasy → "Editovat trasu" → Editační režim
+- Detail trasy → Zpět/ESC → Seznam tras
+- Detail trasy → Smazat → Seznam tras
+- Detail trasy → Kopírovat → Detail trasy (nové kopie)
 
 ### Editační režim (editing mode)
 
@@ -261,11 +309,13 @@ Chování závisí na kontextu:
 
 | Kontext | Akce | Výsledek |
 |---------|------|----------|
-| **Běžný režim** | Klik na trasu | Aktivuje trasu pro editaci (nebo zobrazí menu) |
+| **Běžný režim** | Klik na trasu | Otevře detail trasy (nebo zobrazí menu) |
+| **Detail trasy** | Klik na trasu | Otevře detail této trasy |
 | **Editace, nový segment (0 bodů)** | Klik | Přidá start waypoint |
 | **Editace, aktivní segment, CTRL drženo** | Klik | Přidá routing waypoint na konec |
 | **Editace, aktivní segment, bez CTRL** | Klik na neaktivní segment | Přepne segment do editace |
 | **Editace, aktivní segment, bez CTRL** | Klik na mapu (mimo trasu) | Žádná akce |
+| **Editace** | Klik na jinou trasu | Žádná akce (ostatní trasy jsou read-only) |
 
 ### Pravý klik
 
@@ -381,7 +431,7 @@ Zobrazí se při kliku na menu tlačítko (⋮) u segmentu v seznamu:
 
 ### Menu trasy
 
-Zobrazí se při kliku na menu tlačítko (⋮) v hlavičce editačního panelu:
+Zobrazí se při kliku na menu tlačítko (⋮) v hlavičce **detail panelu**:
 
 ```
 ┌─────────────────────────────┐
@@ -392,8 +442,10 @@ Zobrazí se při kliku na menu tlačítko (⋮) v hlavičce editačního panelu:
 ```
 
 **Možnosti:**
-- **Kopírovat trasu**: Vytvoří kopii trasy se všemi segmenty a atributy
-- **Smazat trasu**: Vyžaduje potvrzení, smaže celou trasu
+- **Kopírovat trasu**: Vytvoří kopii trasy se všemi segmenty a atributy, otevře detail nové kopie
+- **Smazat trasu**: Vyžaduje potvrzení, smaže celou trasu a vrátí na seznam tras
+
+**Poznámka**: Menu bylo přesunuto z editačního panelu do detail panelu, aby bylo dostupné i v read-only režimu.
 
 ### Routes Menu (výběr tras v místě)
 
@@ -556,6 +608,9 @@ Pokud uživatel vytvoří novou trasu a stornuje ji **před přidáním alespoň
 | Klávesa | Akce | Kontext |
 |--------|------|---------|
 | **CTRL** | Přidá routing waypoint | Drženo při kliku na mapu v editačním režimu |
+| **ESC** | Zavře aktuální režim | 
+|  | - V editačním režimu: Zruší editaci (s potvrzením pokud byly změny) → vrátí na detail trasy |
+|  | - V detail režimu: Zavře detail → vrátí na seznam tras |
 | **ALT** | (Nepoužívá se) | - |
 
 **Poznámka**: ALT klávesa byla v předchozí verzi použita pro manual waypointy, ale v novém modelu se mód určuje na úrovni segmentu, ne jednotlivých waypointů.
@@ -596,6 +651,17 @@ V editačním panelu, na konci scrollovatelného obsahu, jsou zobrazeny nápově
 - Při změně aktivního segmentu se přerenderují pouze dotčené vrstvy
 - Neaktivní segmenty používají jednoduché šedé markery (méně DOM elementů)
 - Hover marker se aktualizuje pouze při pohybu myši nad aktivním segmentem
+
+### CSS styling detail panelu
+
+**Hlavička detail panelu:**
+- Tlačítko zpět má `width: auto !important` a `flex-shrink: 0`, aby se neroztahovalo na celou šířku (přepisuje obecný styl `button { width: 100%; }`)
+- Layout používá flexbox s tlačítkem vlevo, nadpisem uprostřed (flex: 1) a menu vpravo
+
+**Nadpis "Segmenty":**
+- Styl `.segments-section > h4` zajišťuje konzistentní vzhled nadpisu v detail panelu
+- Barva: `#9e9e9e` (šedá), velikost: `14px`, `text-transform: uppercase`, `letter-spacing: 0.5px`
+- Aplikuje se na nadpisy přímo v `.segments-section` (bez wrapperu `.segments-header`)
 
 ---
 

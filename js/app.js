@@ -139,8 +139,8 @@ class App {
             if (routeResults.length === 0) {
                 return;
             } else if (routeResults.length === 1) {
-                // Single route - open directly
-                this._activateRouteWithBestFit(routeResults[0].route.id);
+                // Single route - open detail directly
+                this._openRouteDetail(routeResults[0].route.id);
             } else {
                 // Multiple routes - show menu
                 const pixel = mapManager.latLngToContainerPoint(latlng);
@@ -149,9 +149,10 @@ class App {
         });
         
         routeRenderer.setRouteHoverCallback((routeId, isHovering) => {
-            if (!dataStore.isEditing) {
-                routeRenderer.highlightRoute(routeId, isHovering);
-            }
+            // Don't change highlight in editing mode or for the active route in detail mode
+            if (dataStore.isEditing) return;
+            if (dataStore.isViewingDetail && dataStore.activeRouteId === routeId) return;
+            routeRenderer.highlightRoute(routeId, isHovering);
         });
         
         routeRenderer.setSegmentClickCallback((routeId, segmentIndex, latlng) => {
@@ -196,7 +197,7 @@ class App {
     
     _setupRoutesMenuCallbacks() {
         routesMenu.setRouteSelectCallback((routeId) => {
-            this._activateRouteWithBestFit(routeId);
+            this._openRouteDetail(routeId);
         });
     }
     
@@ -212,13 +213,14 @@ class App {
         });
         
         panelManager.setRouteClickCallback((routeId) => {
-            this._activateRouteWithBestFit(routeId);
+            this._openRouteDetail(routeId);
         });
         
         panelManager.setRouteHoverCallback((routeId, isHovering) => {
-            if (!dataStore.isEditing) {
-                routeRenderer.highlightRoute(routeId, isHovering);
-            }
+            // Don't change highlight in editing mode or for the active route in detail mode
+            if (dataStore.isEditing) return;
+            if (dataStore.isViewingDetail && dataStore.activeRouteId === routeId) return;
+            routeRenderer.highlightRoute(routeId, isHovering);
         });
         
         panelManager.setAttributeChangeCallback((attr, value) => {
@@ -278,6 +280,15 @@ class App {
         panelManager.setChangeSegmentModeCallback(async (segmentIndex, newMode) => {
             await this._changeSegmentMode(segmentIndex, newMode);
         });
+        
+        // Detail panel callbacks
+        panelManager.setCloseDetailCallback(() => {
+            this._closeDetail();
+        });
+        
+        panelManager.setStartEditingCallback(() => {
+            this._startEditingFromDetail();
+        });
     }
     
     _setupMapEventHandlers() {
@@ -325,9 +336,13 @@ class App {
                 e.preventDefault(); // Prevent menu from appearing
                 this._updateCursor();
             }
-            // ESC key to cancel editing
-            if (e.key === 'Escape' && dataStore.isEditing) {
-                this._cancelEditing();
+            // ESC key to cancel editing or close detail
+            if (e.key === 'Escape') {
+                if (dataStore.isEditing) {
+                    this._cancelEditing();
+                } else if (dataStore.isViewingDetail) {
+                    this._closeDetail();
+                }
             }
         });
         
@@ -374,6 +389,76 @@ class App {
         this._updateUI();
     }
     
+    /**
+     * Open route in detail view (read-only)
+     */
+    _openRouteDetail(routeId) {
+        if (dataStore.isEditing) return;
+        
+        const previousActiveId = dataStore.activeRouteId;
+        
+        // If already viewing another route's detail, close it first
+        if (dataStore.isViewingDetail && previousActiveId && previousActiveId !== routeId) {
+            const prevRoute = dataStore.getRoute(previousActiveId);
+            if (prevRoute) {
+                routeRenderer.render(prevRoute, false, false, null);
+            }
+        }
+        
+        dataStore.openDetail(routeId);
+        
+        const route = dataStore.getRoute(routeId);
+        if (route) {
+            // Highlight the route (thicker line like hover)
+            routeRenderer.highlightRoute(routeId, true);
+            
+            // Fit bounds to all segments
+            const allCoords = [];
+            route.segments.forEach(seg => {
+                seg.waypoints.forEach(wp => allCoords.push(wp));
+            });
+            if (allCoords.length > 0) {
+                mapManager.fitBounds(allCoords);
+            }
+        }
+        
+        this._updateUI();
+    }
+    
+    /**
+     * Close detail view and return to list
+     */
+    _closeDetail() {
+        if (!dataStore.isViewingDetail) return;
+        
+        const route = dataStore.activeRoute;
+        if (route) {
+            // Unhighlight the route
+            routeRenderer.highlightRoute(route.id, false);
+        }
+        
+        dataStore.closeDetail();
+        this._updateUI();
+    }
+    
+    /**
+     * Start editing from detail view
+     */
+    _startEditingFromDetail() {
+        if (!dataStore.isViewingDetail) return;
+        
+        const routeId = dataStore.activeRouteId;
+        dataStore.startEditing();
+        
+        this._renderActiveRoute();
+        panelManager.resetFormState();
+        this._updateUI();
+    }
+    
+    /**
+     * Activate route directly for editing (used for new routes)
+     * @private
+     */
     _activateRouteWithBestFit(routeId) {
         if (dataStore.isEditing) return;
         
@@ -451,24 +536,23 @@ class App {
             return;
         }
         
-        // Remove invalid segments
-        route.removeInvalidSegments();
+        // Try to save (goes to detail view)
+        const saved = dataStore.saveEditing();
         
-        // Check if there are any valid segments
-        if (!route.hasValidSegments()) {
+        if (!saved) {
+            // No valid segments
             alert('Trasa musí mít alespoň jeden segment s minimálně 2 body.');
             return;
         }
         
-        const previousActiveId = dataStore.activeRouteId;
-        dataStore.deactivateRoute();
         hoverMarker.hide();
         
-        if (previousActiveId) {
-            const savedRoute = dataStore.getRoute(previousActiveId);
-            if (savedRoute) {
-                routeRenderer.render(savedRoute, false, false, null);
-            }
+        // Re-render route (unhighlighted, but keep it visible)
+        const savedRoute = dataStore.activeRoute;
+        if (savedRoute) {
+            routeRenderer.render(savedRoute, false, false, null);
+            // Highlight the route in detail view
+            routeRenderer.highlightRoute(savedRoute.id, true);
         }
         
         this._updateUI();
@@ -496,13 +580,15 @@ class App {
         hoverMarker.hide();
         
         if (wasNewRoute) {
-            // Route was deleted
+            // Route was deleted - go to list
             mapManager.removeRouteLayers(routeId);
         } else {
-            // Route was restored
+            // Route was restored - go to detail view (dataStore.cancelEditing sets isViewingDetail)
             const restoredRoute = dataStore.getRoute(routeId);
             if (restoredRoute) {
                 routeRenderer.render(restoredRoute, false, false, null);
+                // Highlight the route in detail view
+                routeRenderer.highlightRoute(routeId, true);
             }
         }
         
@@ -535,20 +621,28 @@ class App {
             return;
         }
         
-        // Save (close) the current route
-        route.removeInvalidSegments();
+        // Close the current route (detail or editing)
         const previousActiveId = dataStore.activeRouteId;
-        dataStore.deactivateRoute();
-        hoverMarker.hide();
-        
-        // Render the saved route as inactive
-        const savedRoute = dataStore.getRoute(previousActiveId);
-        if (savedRoute) {
-            routeRenderer.render(savedRoute, false, false, null);
+        if (dataStore.isViewingDetail) {
+            // Unhighlight current route
+            routeRenderer.highlightRoute(previousActiveId, false);
+            dataStore.closeDetail();
+        } else if (dataStore.isEditing) {
+            route.removeInvalidSegments();
+            dataStore.deactivateRoute();
+            hoverMarker.hide();
+            // Render the saved route as inactive
+            const savedRoute = dataStore.getRoute(previousActiveId);
+            if (savedRoute) {
+                routeRenderer.render(savedRoute, false, false, null);
+            }
         }
         
-        // Create a copy
-        const copiedRoute = savedRoute.clone();
+        // Create a copy from the original route
+        const originalRoute = dataStore.getRoute(previousActiveId);
+        if (!originalRoute) return;
+        
+        const copiedRoute = originalRoute.clone();
         copiedRoute.id = null;
         
         // Modify the name
@@ -563,12 +657,11 @@ class App {
         // Add the copied route
         const newRoute = dataStore.addRoute(copiedRoute);
         
-        // Activate the new route
-        dataStore.activateRoute(newRoute.id);
-        this._renderActiveRoute();
+        // Render the new route
+        routeRenderer.render(newRoute, false, false, null);
         
-        panelManager.resetFormState();
-        this._updateUI();
+        // Open detail of the new route
+        this._openRouteDetail(newRoute.id);
     }
     
     // ==================
@@ -731,11 +824,12 @@ class App {
     _updateUI() {
         panelManager.updateUI({
             isEditing: dataStore.isEditing,
+            isViewingDetail: dataStore.isViewingDetail,
             activeRoute: dataStore.activeRoute,
             activeSegmentIndex: dataStore.activeSegmentIndex
         });
         
-        if (!dataStore.isEditing) {
+        if (!dataStore.isEditing && !dataStore.isViewingDetail) {
             this._updateRoutesList();
         }
         

@@ -16,13 +16,19 @@ class PanelManager {
         this._statusBar = null;
         this._loadingIndicator = null;
         this._attributesPanel = null;
+        this._detailPanel = null;
         this._routesListContainer = null;
         this._routesList = null;
         this._routesCount = null;
         this._importPanel = null;
         this._dropzone = null;
         this._routeMenu = null;
+        this._detailMenu = null;
         this._editScrollableContent = null;
+        
+        // Detail panel elements
+        this._detailAttributes = null;
+        this._detailSegmentsList = null;
         
         // Form elements
         this._routeTypeSelect = null;
@@ -55,6 +61,8 @@ class PanelManager {
         this._onDeleteRoute = null;
         this._onCopyRoute = null;
         this._onSearchChange = null;
+        this._onCloseDetail = null;
+        this._onStartEditing = null;
         
         // Segment callbacks
         this._onSegmentClick = null;
@@ -70,13 +78,19 @@ class PanelManager {
         this._statusBar = document.getElementById('status-bar');
         this._loadingIndicator = document.getElementById('loading-indicator');
         this._attributesPanel = document.getElementById('attributes-panel');
+        this._detailPanel = document.getElementById('detail-panel');
         this._routesListContainer = document.getElementById('routes-list-container');
         this._routesList = document.getElementById('routes-list');
         this._routesCount = document.getElementById('routes-count');
         this._importPanel = document.getElementById('import-panel');
         this._dropzone = document.getElementById('dropzone');
         this._routeMenu = document.getElementById('route-menu');
+        this._detailMenu = document.getElementById('detail-menu');
         this._editScrollableContent = document.getElementById('edit-scrollable-content');
+        
+        // Detail panel elements
+        this._detailAttributes = document.getElementById('detail-attributes');
+        this._detailSegmentsList = document.getElementById('detail-segments-list');
         
         // Form elements
         this._routeTypeSelect = document.getElementById('route-type');
@@ -266,34 +280,47 @@ class PanelManager {
             }
         });
         
-        // Route menu button
+        // Route menu button (removed from edit panel, kept for backwards compatibility)
         const routeMenuBtn = document.getElementById('route-menu-btn');
-        routeMenuBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            this._routeMenu.classList.toggle('visible');
-        });
+        if (routeMenuBtn && this._routeMenu) {
+            routeMenuBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this._routeMenu.classList.toggle('visible');
+            });
+        }
         
-        // Copy route menu item
-        document.getElementById('menu-copy-route').addEventListener('click', (e) => {
-            e.stopPropagation();
-            this._routeMenu.classList.remove('visible');
-            if (this._onCopyRoute) {
-                this._onCopyRoute();
-            }
-        });
+        // Copy route menu item (removed from edit panel)
+        const menuCopyRoute = document.getElementById('menu-copy-route');
+        if (menuCopyRoute) {
+            menuCopyRoute.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (this._routeMenu) this._routeMenu.classList.remove('visible');
+                if (this._onCopyRoute) {
+                    this._onCopyRoute();
+                }
+            });
+        }
         
-        // Delete route menu item
-        document.getElementById('menu-delete-route').addEventListener('click', (e) => {
-            e.stopPropagation();
-            this._routeMenu.classList.remove('visible');
-            if (this._onDeleteRoute) {
-                this._onDeleteRoute();
-            }
-        });
+        // Delete route menu item (removed from edit panel)
+        const menuDeleteRoute = document.getElementById('menu-delete-route');
+        if (menuDeleteRoute) {
+            menuDeleteRoute.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (this._routeMenu) this._routeMenu.classList.remove('visible');
+                if (this._onDeleteRoute) {
+                    this._onDeleteRoute();
+                }
+            });
+        }
         
         // Close route menu on click elsewhere
         document.addEventListener('click', () => {
-            this._routeMenu.classList.remove('visible');
+            if (this._routeMenu) {
+                this._routeMenu.classList.remove('visible');
+            }
+            if (this._detailMenu) {
+                this._detailMenu.classList.remove('visible');
+            }
             if (this._segmentMenu) {
                 this._segmentMenu.classList.remove('visible');
             }
@@ -352,6 +379,59 @@ class PanelManager {
                 }
             });
         }
+        
+        // Detail panel: Close detail button (back arrow)
+        const closeDetailBtn = document.getElementById('btn-close-detail');
+        if (closeDetailBtn) {
+            closeDetailBtn.addEventListener('click', () => {
+                if (this._onCloseDetail) {
+                    this._onCloseDetail();
+                }
+            });
+        }
+        
+        // Detail panel: Start editing button
+        const startEditingBtn = document.getElementById('btn-start-editing');
+        if (startEditingBtn) {
+            startEditingBtn.addEventListener('click', () => {
+                if (this._onStartEditing) {
+                    this._onStartEditing();
+                }
+            });
+        }
+        
+        // Detail panel: Menu button
+        const detailMenuBtn = document.getElementById('detail-menu-btn');
+        if (detailMenuBtn) {
+            detailMenuBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this._detailMenu.classList.toggle('visible');
+            });
+        }
+        
+        // Detail panel: Copy route
+        const detailCopyRoute = document.getElementById('detail-menu-copy-route');
+        if (detailCopyRoute) {
+            detailCopyRoute.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this._detailMenu.classList.remove('visible');
+                if (this._onCopyRoute) {
+                    this._onCopyRoute();
+                }
+            });
+        }
+        
+        // Detail panel: Delete route
+        const detailDeleteRoute = document.getElementById('detail-menu-delete-route');
+        if (detailDeleteRoute) {
+            detailDeleteRoute.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this._detailMenu.classList.remove('visible');
+                if (this._onDeleteRoute) {
+                    this._onDeleteRoute();
+                }
+            });
+        }
     }
     
     // ==================
@@ -375,6 +455,10 @@ class PanelManager {
     setAddSegmentCallback(callback) { this._onAddSegment = callback; }
     setDeleteSegmentCallback(callback) { this._onDeleteSegment = callback; }
     setChangeSegmentModeCallback(callback) { this._onChangeSegmentMode = callback; }
+    
+    // Detail callbacks
+    setCloseDetailCallback(callback) { this._onCloseDetail = callback; }
+    setStartEditingCallback(callback) { this._onStartEditing = callback; }
     
     // ==================
     // UI UPDATES
@@ -410,14 +494,28 @@ class PanelManager {
      * @param {number|null} state.activeSegmentIndex - Index of active segment
      */
     updateUI(state) {
-        const { isEditing, activeRoute, activeSegmentIndex } = state;
+        const { isEditing, isViewingDetail, activeRoute, activeSegmentIndex } = state;
         
         // Disable/enable buttons based on mode
-        document.getElementById('btn-create-route').disabled = isEditing;
-        document.getElementById('btn-export-gpx').disabled = isEditing;
-        document.getElementById('btn-import-gpx').disabled = isEditing;
+        const isInRouteMode = isEditing || isViewingDetail;
+        document.getElementById('btn-create-route').disabled = isInRouteMode;
+        document.getElementById('btn-export-gpx').disabled = isInRouteMode;
+        document.getElementById('btn-import-gpx').disabled = isInRouteMode;
         
-        if (isEditing && activeRoute) {
+        if (isViewingDetail && activeRoute) {
+            // Detail mode - read-only view of route
+            const title = activeRoute.getTitle();
+            this.setStatusText(`Detail: ${title}`);
+            
+            // Hide routes list and edit panel, show detail panel
+            this._routesListContainer.classList.add('hidden');
+            this._attributesPanel.style.display = 'none';
+            this._detailPanel.style.display = 'flex';
+            
+            // Fill detail panel with route attributes
+            this._updateDetailPanel(activeRoute);
+            
+        } else if (isEditing && activeRoute) {
             // Update status bar
             const title = activeRoute.getTitle();
             const activeSegment = activeRoute.getSegment(activeSegmentIndex);
@@ -429,8 +527,9 @@ class PanelManager {
                 this.setStatusText(`${title} - Segment ${(activeSegmentIndex || 0) + 1} (${segmentWpCount} bodů)`);
             }
             
-            // Hide routes list, show attributes panel
+            // Hide routes list and detail panel, show attributes panel
             this._routesListContainer.classList.add('hidden');
+            this._detailPanel.style.display = 'none';
             this._attributesPanel.style.display = 'flex';
             
             // Fill form with route attributes (only if value differs to preserve focus)
@@ -472,12 +571,94 @@ class PanelManager {
         } else {
             this.setStatusText('Nevybraná trasa');
             
-            // Show routes list, hide attributes panel
+            // Show routes list, hide attributes and detail panels
             this._routesListContainer.classList.remove('hidden');
             this._attributesPanel.style.display = 'none';
+            this._detailPanel.style.display = 'none';
             document.getElementById('btn-save-route').disabled = true;
             document.getElementById('btn-cancel-route').disabled = true;
         }
+    }
+    
+    /**
+     * Update the detail panel with route attributes (read-only)
+     * @private
+     */
+    _updateDetailPanel(route) {
+        if (!this._detailAttributes || !this._detailSegmentsList) return;
+        
+        // Build attributes display
+        const attributes = [
+            { label: 'Typ trasy', value: this._getRouteTypeLabel(route.routeType) },
+            { label: 'Číslo / zkratka', value: route.ref },
+            { label: 'Název', value: route.name },
+            { label: 'Barva', value: this._getRouteColorLabel(route.color, route.customColor) },
+            { label: 'Značka', value: route.symbol },
+            { label: 'Rozsah', value: this._getNetworkLabel(route.network) },
+            { label: 'Wikidata', value: route.wikidata },
+            { label: 'Další data', value: route.customData }
+        ];
+        
+        this._detailAttributes.innerHTML = attributes
+            .filter(attr => attr.value) // Only show non-empty attributes
+            .map(attr => `
+                <div class="detail-attribute">
+                    <span class="detail-attribute-label">${attr.label}</span>
+                    <span class="detail-attribute-value">${attr.value}</span>
+                </div>
+            `).join('');
+        
+        // If all attributes are empty, show a message
+        if (this._detailAttributes.innerHTML === '') {
+            this._detailAttributes.innerHTML = '<div class="detail-attribute-value empty">Žádné atributy</div>';
+        }
+        
+        // Build segments display
+        this._detailSegmentsList.innerHTML = route.segments
+            .filter(seg => seg.isValid())
+            .map((segment, index) => `
+                <div class="detail-segment-item">
+                    <span class="detail-segment-number">${index + 1}.</span>
+                    <div class="detail-segment-info">
+                        <span class="detail-segment-type">${segment.mode === 'routing' ? 'Plánovaný' : 'Ruční'}</span>
+                        <span class="detail-segment-wp-count">${segment.waypoints.length} bodů</span>
+                    </div>
+                </div>
+            `).join('');
+        
+        if (this._detailSegmentsList.innerHTML === '') {
+            this._detailSegmentsList.innerHTML = '<div class="detail-attribute-value empty">Žádné segmenty</div>';
+        }
+    }
+    
+    /**
+     * Get route type label
+     * @private
+     */
+    _getRouteTypeLabel(routeType) {
+        const item = ROUTE_TYPE_ENUM.find(e => e.value === routeType);
+        return item ? item.label : routeType;
+    }
+    
+    /**
+     * Get route color label
+     * @private
+     */
+    _getRouteColorLabel(color, customColor) {
+        if (!color) return null;
+        if (color === 'Other') return customColor || 'Vlastní';
+        const item = ROUTE_COLOR_ENUM.find(e => e.value === color);
+        return item ? item.label : color;
+    }
+    
+    /**
+     * Get network label
+     * @private
+     */
+    _getNetworkLabel(network) {
+        if (!network) return null;
+        const item = ROUTE_NETWORK_ENUM.find(e => e.value === network);
+        return item ? item.label : network;
     }
     
     /**

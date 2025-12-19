@@ -169,29 +169,34 @@
                 </div>
             </div>
 
-            <!-- Edit Panel (shown when editing) -->
-            <div class="panel-section edit-panel" id="attributes-panel" style="display: none;">
-                <!-- Header with buttons at top -->
-                <div class="edit-panel-header">
+            <!-- Detail Panel (shown when viewing route details) -->
+            <div class="panel-section detail-panel" id="detail-panel" style="display: none;">
+                <!-- Header -->
+                <div class="detail-panel-header">
                     <div class="panel-header-row">
-                        <h3>Editace trasy</h3>
+                        <button class="btn-back" id="btn-close-detail" title="Zpět na seznam">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="15 18 9 12 15 6"></polyline>
+                            </svg>
+                        </button>
+                        <h3>Detail trasy</h3>
                         <div class="panel-menu-container">
-                            <button class="panel-menu-btn" id="route-menu-btn" title="Menu trasy">
+                            <button class="panel-menu-btn" id="detail-menu-btn" title="Menu trasy">
                                 <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
                                     <circle cx="12" cy="5" r="2"></circle>
                                     <circle cx="12" cy="12" r="2"></circle>
                                     <circle cx="12" cy="19" r="2"></circle>
                                 </svg>
                             </button>
-                            <div class="panel-menu" id="route-menu">
-                                <div class="panel-menu-item" id="menu-copy-route">
+                            <div class="panel-menu" id="detail-menu">
+                                <div class="panel-menu-item" id="detail-menu-copy-route">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                         <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
                                         <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
                                     </svg>
                                     Kopírovat trasu
                                 </div>
-                                <div class="panel-menu-item delete" id="menu-delete-route">
+                                <div class="panel-menu-item delete" id="detail-menu-delete-route">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                         <polyline points="3 6 5 6 21 6"></polyline>
                                         <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -200,6 +205,39 @@
                                 </div>
                             </div>
                         </div>
+                    </div>
+                    
+                    <div class="button-row">
+                        <button class="primary btn-main" id="btn-start-editing">Editovat trasu</button>
+                    </div>
+                </div>
+                
+                <!-- Scrollable content -->
+                <div class="detail-scrollable-content" id="detail-scrollable-content">
+                    <!-- Attributes display (read-only) -->
+                    <div class="attributes-section">
+                        <h4>Atributy</h4>
+                        <div class="detail-attributes" id="detail-attributes">
+                            <!-- Filled dynamically -->
+                        </div>
+                    </div>
+                    
+                    <!-- Segments display (read-only) -->
+                    <div class="segments-section">
+                        <h4>Segmenty</h4>
+                        <div class="detail-segments-list" id="detail-segments-list">
+                            <!-- Filled dynamically -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Edit Panel (shown when editing) -->
+            <div class="panel-section edit-panel" id="attributes-panel" style="display: none;">
+                <!-- Header with buttons at top -->
+                <div class="edit-panel-header">
+                    <div class="panel-header-row">
+                        <h3>Editace trasy</h3>
                     </div>
                     
                     <div class="button-row">
