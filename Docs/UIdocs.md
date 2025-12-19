@@ -1,0 +1,602 @@
+# MapyEditor Beta - Dokumentace uživatelského rozhraní
+
+## Přehled
+
+MapyEditor Beta je editor tras, který umožňuje vytvářet a upravovat trasy složené z **nezávislých segmentů**. Každý segment má svůj vlastní start a cíl, může být buď **plánovaný** (routing) nebo **ruční** (manual), a může být editován nezávisle na ostatních segmentech trasy.
+
+## Datový model
+
+### Segment
+
+Segment je **nezávislá část trasy** s vlastními waypointy a geometrií:
+
+```javascript
+{
+    mode: 'routing' | 'manual',  // Typ segmentu
+    waypoints: [{lat, lon}, ...], // Řídící body segmentu
+    geometry: [{lat, lon}, ...]   // Vypočtená geometrie (čára na mapě)
+}
+```
+
+**Typy segmentů:**
+- **Routing (plánovaný)**: Geometrie se vypočítá přes Mapy.cz Routing API. Waypointy jsou řídící body, které se "snapují" na silniční síť. Maximálně 15 waypointů.
+- **Manual (ruční)**: Geometrie jsou přímé čáry mezi waypointy. Žádné omezení počtu bodů.
+
+**Validita segmentu:**
+- Segment musí mít **minimálně 2 waypointy** (start + cíl)
+- Nevalidní segmenty (méně než 2 body) se automaticky zahazují při:
+  - Uložení trasy
+  - Přepnutí na jiný segment
+  - Přidání nového segmentu
+
+### Trasa
+
+Trasa obsahuje atributy a pole segmentů:
+
+```javascript
+{
+    id: number,
+    
+    // Atributy trasy (společné pro všechny segmenty)
+    routeType: 'Hiking' | 'Foot' | 'FitnessTrail' | 'ViaFerrata',
+    color: 'Red' | 'Blue' | 'Green' | ... | 'Other' | null,
+    customColor: string | null,
+    symbol: string | null,
+    name: string | null,
+    ref: string | null,
+    network: 'Iwn' | 'Nwn' | 'Lwn',
+    wikidata: string | null,
+    customData: string | null,
+    
+    // Segmenty
+    segments: Segment[]  // Pole nezávislých segmentů
+}
+```
+
+**Důležité:**
+- Segmenty **nenavazují** na sebe - každý má vlastní start a cíl
+- Atributy jsou **společné** pro celou trasu
+- Trasa musí mít **alespoň jeden validní segment** (≥2 waypointy)
+
+## Hlavní komponenty UI
+
+### 1. Mapa
+
+Centrální komponenta pro zobrazení a interakci s trasami:
+- Zobrazuje všechny trasy a jejich segmenty
+- Umožňuje klikání pro přidávání bodů
+- Zobrazuje hover efekty a tooltips
+- Podporuje drag & drop waypointů
+
+### 2. Pravý panel
+
+Obsahuje tři hlavní sekce:
+
+#### A) Hlavní toolbar
+- **Nová** - vytvoří novou trasu s prázdným segmentem
+- **Nahrát** - import GPX souborů
+- **Uložit** - export všech tras do GPX
+
+#### B) Seznam tras (běžný režim)
+- Zobrazuje všechny načtené trasy
+- Vyhledávání tras
+- Kliknutím aktivuje trasu pro editaci
+- Hover zvýrazní trasu na mapě
+
+#### C) Panel editace (editační režim)
+- **Hlavička**: Tlačítka "Uložit trasu" a "Storno" + menu trasy
+- **Scrollovatelný obsah**:
+  - Formulář atributů trasy
+  - Seznam segmentů s možností přidání/úpravy
+
+## Režimy práce
+
+### Běžný pohled (non-editing mode)
+
+**Vizuální stav:**
+- Všechny trasy jsou zobrazeny na mapě
+- Trasy jsou vykresleny jako plné čáry svojí barvou (atribut)
+- Barva odpovídá atributu `color` trasy
+- Hover nad trasou ji zvýrazní (tlustší čára, vyšší opacity) a zobrazí tooltip s názve
+
+**Interakce:**
+- **Klik na trasu**: 
+  - Pokud je v místě jen jedna trasa → otevře editaci
+  - Pokud je více tras → zobrazí menu s výběrem
+- **Pravý klik na mapu**: Zobrazí menu se všemi trasami v místě (pokud existují)
+- **Hover nad trasou**: Zvýrazní trasu na mapě
+
+### Editační režim (editing mode)
+
+**Vizuální stav:**
+- **Aktivní segment** (právě editovaný):
+  - Barevné waypoint markery (zelený start, červený konec, žluté/bledě modré průjezdní)
+  - Markery jsou draggable
+  - Hover marker pro přidávání midpoints (zelený kruh s +)
+  
+- **Neaktivní segmenty** (ostatní segmenty editované trasy):
+  - Malé šedé markery na startu a konci (10px, neinteraktivní)
+  - Slouží pouze pro vizuální orientaci
+  - Kliknutím na čáru nebo marker se segment aktivuje
+
+- **Ostatní trasy** (needitované):
+  - Zobrazeny normálně, ale bez interakce
+
+**Z-ordering:**
+- Aktivní segment je vždy vykreslen **nad** ostatními segmenty
+- Zajišťuje správnou editaci i při překrývání
+
+## Vytváření a editace tras
+
+### Vytvoření nové trasy
+
+1. Klik na tlačítko **"Nová"** v hlavním toolbaru
+2. Vytvoří se nová trasa s **jedním prázdným segmentem** (0 waypointů)
+3. Aplikace přejde do editačního režimu
+4. **Kurzor se změní na crosshair** (režim přidávání startu)
+
+### Přidávání waypointů
+
+#### Start (první bod segmentu)
+
+- **Akce**: Klik na mapu (bez modifikátoru)
+- **Výsledek**: Vytvoří se start waypoint (zelený marker)
+- **Kurzor**: `crosshair`
+- **Poznámka**: Funguje pouze pokud segment má 0 waypointů
+
+#### Průjezdní body (routing segment)
+
+- **Akce**: **CTRL + klik** na mapu
+- **Výsledek**: Přidá se routing waypoint (žlutý marker)
+- **Kurzor**: `crosshair` (sjednocený s režimem startu)
+- **Omezení**: Maximálně 15 waypointů v routing segmentu
+
+#### Midpointy (průjezdní body na čáře)
+
+- **Akce**: Klik na **hover marker** (zelený kruh s +), který se zobrazí při pohybu myši nad čárou aktivního segmentu
+- **Výsledek**: Přidá se waypoint na pozici markeru
+- **Mód**: Zdědí mód segmentu (routing nebo manual)
+- **Podmínky zobrazení**:
+  - Zobrazí se pouze pokud je myš blízko čáry (< 20px)
+  - Skryje se pokud je myš blízko existujícího waypointu (< 20px)
+
+### Editace waypointů
+
+#### Přesunutí waypointu
+
+- **Akce**: Drag & drop waypoint markeru
+- **Výsledek**: 
+  - Waypoint se přesune na novou pozici
+  - Geometrie segmentu se přepočítá
+  - Pro routing segmenty se zavolá API
+
+#### Smazání waypointu
+
+- **Akce**: Pravý klik na waypoint → "Smazat bod"
+- **Výsledek**: 
+  - Waypoint se odstraní
+  - Pokud by segment měl <2 body, zobrazí se dotaz na smazání celého segmentu
+  - Geometrie se přepočítá
+
+### Změna módu segmentu
+
+#### Z routing na manual
+
+- **Akce**: 
+  - Pravý klik na waypoint → "Změnit segment na ruční"
+  - Nebo v seznamu segmentů → menu → "Změnit na ruční"
+- **Výsledek**: 
+  - Všechny waypointy segmentu se změní na manual mód
+  - Geometrie se nahradí přímkami mezi waypointy
+
+#### Z manual na routing
+
+- **Akce**: 
+  - Pravý klik na waypoint → "Změnit segment na plánování"
+  - Nebo v seznamu segmentů → menu → "Změnit na plánování"
+- **Omezení**: Možné pouze pokud segment má **≤15 waypointů**
+- **Výsledek**: 
+  - Všechny waypointy segmentu se změní na routing mód
+  - Geometrie se přepočítá přes API
+
+## Práce se segmenty
+
+### Seznam segmentů
+
+V editačním panelu, pod formulářem atributů, je sekce **"Segmenty"**:
+
+```
+┌─────────────────────────────┐
+│ Segmenty          [+ Nový] │
+├─────────────────────────────┤
+│ 1. Plánovaný (5 bodů)  [⋮] │ ← Aktivní (zvýrazněný)
+│ 2. Ruční (3 body)      [⋮] │
+│ 3. Plánovaný (8 bodů)  [⋮] │
+└─────────────────────────────┘
+```
+
+**Každý řádek zobrazuje:**
+- Pořadové číslo segmentu
+- Typ segmentu (Plánovaný / Ruční)
+- Počet waypointů
+- Menu tlačítko (⋮) pro akce
+
+### Aktivace segmentu
+
+Segment se aktivuje (přepne do editace) třemi způsoby:
+
+1. **Klik na řádek** v seznamu segmentů
+2. **Klik na čáru segmentu** na mapě
+3. **Klik na šedý marker** (start/konec) neaktivního segmentu
+
+**Poznámka**: Pokud je kurzor v režimu "přidávání bodu" (nový segment nebo CTRL), klik na neaktivní segment **nepřepne segment**, ale **přidá bod** na toto místo.
+
+### Přidání nového segmentu
+
+1. Klik na tlačítko **"Nový"** v hlavičce sekce Segmenty
+2. Vytvoří se nový prázdný segment (0 waypointů) v módu "routing"
+3. Segment se automaticky aktivuje
+4. První klik na mapu vytvoří start
+
+### Smazání segmentu
+
+1. Klik na menu tlačítko (⋮) u segmentu
+2. Vybrat **"Smazat segment"**
+3. Potvrdit smazání
+4. Segment se odstraní (včetně všech waypointů)
+
+### Změna módu segmentu (ze seznamu)
+
+1. Klik na menu tlačítko (⋮) u segmentu
+2. Vybrat **"Změnit na plánování"** nebo **"Změnit na ruční"**
+3. Segment se přepočítá podle nového módu
+
+**Omezení**: Změna na plánování je možná pouze pokud segment má ≤15 waypointů.
+
+## Interakce s mapou
+
+### Klik na mapu
+
+Chování závisí na kontextu:
+
+| Kontext | Akce | Výsledek |
+|---------|------|----------|
+| **Běžný režim** | Klik na trasu | Aktivuje trasu pro editaci (nebo zobrazí menu) |
+| **Editace, nový segment (0 bodů)** | Klik | Přidá start waypoint |
+| **Editace, aktivní segment, CTRL drženo** | Klik | Přidá routing waypoint na konec |
+| **Editace, aktivní segment, bez CTRL** | Klik na neaktivní segment | Přepne segment do editace |
+| **Editace, aktivní segment, bez CTRL** | Klik na mapu (mimo trasu) | Žádná akce |
+
+### Pravý klik
+
+| Kontext | Akce | Výsledek |
+|---------|------|----------|
+| **Běžný režim** | Pravý klik na mapu | Zobrazí menu s trasami v místě |
+| **Editace** | Pravý klik na waypoint | Zobrazí kontextové menu waypointu |
+
+### Drag & Drop
+
+- **Waypointy aktivního segmentu**: Draggable, přesunutí přepočítá geometrii
+- **Waypointy neaktivních segmentů**: Nejsou draggable (jsou to jen šedé markery)
+
+### Hover efekty
+
+- **Běžný režim**: Hover nad trasou ji zvýrazní
+- **Editační režim**: 
+  - Hover nad čárou aktivního segmentu → zobrazí hover marker pro midpoint
+  - Hover nad neaktivním segmentem → zobrazí tooltip s číslem segmentu
+
+## Kurzory myši
+
+| Stav | Kurzor | Popis |
+|------|--------|-------|
+| **Nový segment (0 bodů)** | `crosshair` | Kříž - připraveno přidat start |
+| **CTRL drženo (přidávání routing bodu)** | `crosshair` | Kříž - připraveno přidat routing waypoint |
+| **Hover nad čárou (midpoint)** | `crosshair` | Kříž - připraveno přidat midpoint |
+| **Výchozí v editaci** | `default` | Standardní kurzor |
+| **Běžný režim** | `default` | Standardní kurzor |
+
+**Důležité**: Všechny režimy přidávání bodů používají **stejný kurzor** (`crosshair`) pro konzistentní UX.
+
+## Vizualizace
+
+### Segmenty na mapě
+
+| Typ segmentu | Vzhled | Barva |
+|--------------|--------|-------|
+| **Routing (plánovaný)** | Plná čára | Barva trasy |
+| **Manual (ruční)** | Čárkovaná čára (10px, 10px) | Barva trasy |
+
+**Poznámka**: Čárkování je viditelné pouze v editačním režimu pro aktivní trasu.
+
+### Waypoint markery
+
+#### Aktivní segment
+
+| Typ waypointu | Vzhled | Barva | Velikost | Interaktivita |
+|---------------|--------|-------|----------|---------------|
+| **Start** | Kruh | `#4CAF50` (zelená) | 16px | Draggable |
+| **Konec** | Kruh | `#F44336` (červená) | 16px | Draggable |
+| **Routing waypoint** | Kruh | `#FFC107` (žlutá) | 14px | Draggable |
+| **Manual waypoint** | Kruh | `#90CAF9` (bledě modrá) | 14px | Draggable |
+
+#### Neaktivní segmenty
+
+| Typ markeru | Vzhled | Barva | Velikost | Interaktivita |
+|-------------|--------|-------|----------|---------------|
+| **Start marker** | Kruh | `#888888` (šedá) | 10px | Kliknutelný (aktivuje segment) |
+| **End marker** | Kruh | `#888888` (šedá) | 10px | Kliknutelný (aktivuje segment) |
+
+**Poznámka**: Všechny markery mají bílý okraj (2-3px) a stín pro lepší viditelnost.
+
+### Hover marker (midpoint)
+
+- **Vzhled**: Zelený kruh (24px) s bílým křížkem (+)
+- **Zobrazení**: Pouze při hover nad čárou aktivního segmentu
+- **Podmínky**:
+  - Zobrazí se pokud je myš < 20px od čáry
+  - Skryje se pokud je myš < 20px od existujícího waypointu
+- **Akce**: Klik přidá waypoint na pozici markeru
+
+## Kontextová menu
+
+### Menu waypointu
+
+Zobrazí se při **pravém kliku na waypoint** aktivního segmentu:
+
+```
+┌─────────────────────────────┐
+│ 🗑 Smazat bod               │
+├─────────────────────────────┤
+│ ⏱ Změnit segment na        │
+│    plánování                │
+│ ✏️ Změnit segment na ruční │
+└─────────────────────────────┘
+```
+
+**Možnosti:**
+- **Smazat bod**: Odstraní waypoint. Pokud by segment měl <2 body, zobrazí se dotaz na smazání segmentu.
+- **Změnit segment na plánování**: Dostupné pouze pokud segment má ≤15 waypointů. Změní mód celého segmentu.
+- **Změnit segment na ruční**: Změní mód celého segmentu na manual.
+
+**Poznámka**: Změna módu se týká **celého segmentu**, ne jen jednoho waypointu.
+
+### Menu segmentu (v seznamu)
+
+Zobrazí se při kliku na menu tlačítko (⋮) u segmentu v seznamu:
+
+```
+┌─────────────────────────────┐
+│ ⏱ Změnit na plánování      │
+│ ✏️ Změnit na ruční         │
+├─────────────────────────────┤
+│ 🗑 Smazat segment           │
+└─────────────────────────────┘
+```
+
+**Možnosti:**
+- **Změnit na plánování**: Dostupné pouze pokud segment má ≤15 waypointů
+- **Změnit na ruční**: Vždy dostupné
+- **Smazat segment**: Vyžaduje potvrzení
+
+### Menu trasy
+
+Zobrazí se při kliku na menu tlačítko (⋮) v hlavičce editačního panelu:
+
+```
+┌─────────────────────────────┐
+│ 📋 Kopírovat trasu          │
+├─────────────────────────────┤
+│ 🗑 Smazat trasu             │
+└─────────────────────────────┘
+```
+
+**Možnosti:**
+- **Kopírovat trasu**: Vytvoří kopii trasy se všemi segmenty a atributy
+- **Smazat trasu**: Vyžaduje potvrzení, smaže celou trasu
+
+### Routes Menu (výběr tras v místě)
+
+Zobrazí se ve dvou případech:
+
+1. **Klik na trasu** (běžný režim): Pokud je v místě více než jedna trasa
+2. **Pravý klik na mapu** (běžný režim): Zobrazí všechny trasy v místě
+
+```
+┌─────────────────────────────┐
+│ Trasy v místě:              │
+├─────────────────────────────┤
+│ 🔴 Cesta na Sněžku          │
+│    Počet segmentů: 3         │
+├─────────────────────────────┤
+│ 🔵 Krkonošská magistrála   │
+│    Počet segmentů: 5        │
+└─────────────────────────────┘
+```
+
+**Parametry:**
+- Tolerance detekce: 20 pixelů od kurzoru
+- Seřazení: Podle vzdálenosti (nejbližší první)
+- Zobrazení: Barevný indikátor, název, počet segmentů
+- Akce: Klik na trasu ji aktivuje pro editaci
+
+## Atributy trasy
+
+Atributy jsou **společné pro celou trasu** a všechny její segmenty. Formulář je v editačním panelu:
+
+### Povinné atributy
+
+- **Typ trasy** (`routeType`): 
+  - Hiking (Turistická trasa)
+  - Foot (Pěší trasa)
+  - FitnessTrail (Běžecká trasa)
+  - ViaFerrata (Via ferrata)
+
+### Volitelné atributy
+
+- **Číslo / zkratka** (`ref`): Textové pole
+- **Název** (`name`): Textové pole
+- **Barva** (`color`): Dropdown s možností "Vlastní" (pak se zobrazí color picker)
+- **Značka** (`symbol`): Textový popis značení
+- **Rozsah** (`network`): 
+  - Iwn (Mezinárodní)
+  - Nwn (Národní)
+  - Lwn (Lokální)
+- **Wikidata** (`wikidata`): ID ve formátu Q12345
+- **Další data** (`customData`): Rozbalitelná sekce s textovým polem pro poznámky
+
+**Virtualizované metody zobrazení:**
+
+Třída `Route` poskytuje metody pro konzistentní zobrazení dat napříč UI:
+
+#### `route.getTitle()` - Název trasy
+
+Určuje se pomocí **coalesce** (první nenulová hodnota):
+1. `ref` (číslo/zkratka) - pokud je vyplněno
+2. `name` (název) - pokud je vyplněno
+3. `"noname"` - fallback, pokud není vyplněno ani `ref`, ani `name`
+
+**Příklad:**
+- `ref = "0001"`, `name = null` → `"0001"`
+- `ref = null`, `name = "Cesta na Sněžku"` → `"Cesta na Sněžku"`
+- `ref = null`, `name = null` → `"noname"`
+
+#### `route.getSubtitle()` - Podnázev trasy
+
+Vrací **český název typu trasy** (`routeType`):
+- `'Hiking'` → `"Turistická trasa"`
+- `'Foot'` → `"Pěší trasa"`
+- `'FitnessTrail'` → `"Běžecká trasa"`
+- `'ViaFerrata'` → `"Via ferrata"`
+
+#### `route.getColor()` - HEX barva trasy
+
+Určuje se podle následující logiky:
+
+1. **Pokud `color === null`**:
+   - Vrátí `#808080` (šedá, výchozí barva)
+
+2. **Pokud `color === 'Other'`**:
+   - Vrátí `customColor` (vlastní HEX barva z color pickeru)
+   - Pokud `customColor` není vyplněno, vrátí `#808080`
+
+3. **Jinak** (standardní barva z enum):
+   - Vrátí HEX hodnotu z `ROUTE_COLOR_ENUM` pro danou barvu
+   - Pokud barva není v enumu, vrátí `#808080`
+
+**Příklad:**
+- `color = 'Red'` → `"#FF0000"` (z enum)
+- `color = 'Other'`, `customColor = '#FF5733'` → `"#FF5733"`
+- `color = 'Other'`, `customColor = null` → `"#808080"`
+- `color = null` → `"#808080"`
+
+**Použití:**
+Tyto metody se používají ve všech UI komponentách:
+- Seznam tras (zobrazení názvu a barvy)
+- Tooltips na mapě
+- Routes menu (výběr tras v místě)
+- Status bar
+
+## Validace a chybové stavy
+
+### Validace segmentu
+
+- **Minimální počet waypointů**: 2 (start + cíl)
+- **Nevalidní segmenty** se automaticky zahazují při:
+  - Uložení trasy
+  - Přepnutí na jiný segment
+  - Přidání nového segmentu
+
+### Validace trasy
+
+- **Minimální počet validních segmentů**: 1
+- **Uložení trasy**: 
+  - Pokud trasa nemá žádný validní segment → zobrazí se alert
+  - Nevalidní segmenty se automaticky odstraní
+- **Export GPX**: Trasy bez validních segmentů se přeskočí
+
+### Omezení routing segmentů
+
+- **Maximální počet waypointů**: 15
+- **Přidání waypointu**: Pokud by segment měl >15 bodů, operace se neprovede
+- **Změna módu na routing**: Dostupné pouze pokud segment má ≤15 waypointů
+
+### Stornování nové trasy
+
+Pokud uživatel vytvoří novou trasu a stornuje ji **před přidáním alespoň jednoho validního segmentu**, trasa se automaticky odstraní.
+
+## Ukládání a načítání
+
+### Export GPX
+
+- **Akce**: Tlačítko "Uložit" v hlavním toolbaru
+- **Výsledek**: Vytvoří se GPX soubor se všemi trasami
+- **Filtrování**: Trasy bez validních segmentů se přeskočí
+- **Formát**: Každý segment = jeden `<trkseg>` element
+
+### Import GPX
+
+- **Akce**: Tlačítko "Nahrát" v hlavním toolbaru
+- **Podporované formáty**: 
+  - Nový formát (s `gpxx:SegmentMode`)
+  - Starý formát (automatická detekce)
+- **Výsledek**: 
+  - Každý `<trkseg>` se načte jako samostatný segment
+  - Pokud GPX obsahuje více `<trkseg>`, vytvoří se trasa s více segmenty
+- **Poznámka**: Import nevyžaduje API volání (geometrie je v GPX)
+
+## Loading indikátor
+
+- **Zobrazení**: Pouze při routing operacích (API volání)
+- **Text**: "Plánuji trasu..."
+- **Poznámka**: Manual operace jsou okamžité, bez indikátoru
+
+## Klávesové zkratky
+
+| Klávesa | Akce | Kontext |
+|--------|------|---------|
+| **CTRL** | Přidá routing waypoint | Drženo při kliku na mapu v editačním režimu |
+| **ALT** | (Nepoužívá se) | - |
+
+**Poznámka**: ALT klávesa byla v předchozí verzi použita pro manual waypointy, ale v novém modelu se mód určuje na úrovni segmentu, ne jednotlivých waypointů.
+
+## Status bar
+
+Zobrazuje se v horní části mapy a ukazuje aktuální stav:
+
+- **"Nevybraná trasa"** - běžný režim, žádná aktivní trasa
+- **"Editace trasy: [název]"** - editační režim s názvem aktivní trasy
+- **"Segment X z Y"** - informace o aktivním segmentu (v editačním režimu)
+
+## Help hinty
+
+V editačním panelu, na konci scrollovatelného obsahu, jsou zobrazeny nápovědné hinty:
+
+```
+💡 CTRL + klik – přidá plánovaný bod
+💡 Klikněte na segment pro jeho editaci
+```
+
+## Technické poznámky
+
+### Z-ordering
+
+- Aktivní segment je vždy vykreslen **nad** ostatními segmenty
+- Zajišťuje správnou editaci i při překrývání
+- Implementováno pomocí `bringToFront()` na Leaflet polyline
+
+### Event propagation
+
+- Klik na neaktivní segment v režimu "přidávání bodu" **nepřeruší** event - klik projde na mapu a přidá bod
+- Klik na neaktivní segment v běžném editačním režimu **přeruší** event a aktivuje segment
+- Hover marker se skryje před přepnutím segmentu, aby se zabránilo nechtěnému přidání midpointu
+
+### Optimalizace renderingu
+
+- Při změně aktivního segmentu se přerenderují pouze dotčené vrstvy
+- Neaktivní segmenty používají jednoduché šedé markery (méně DOM elementů)
+- Hover marker se aktualizuje pouze při pohybu myši nad aktivním segmentem
+
+---
+
+*Dokumentace aktualizována: Prosinec 2025*
