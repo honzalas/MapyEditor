@@ -829,6 +829,9 @@ class App {
             activeSegmentIndex: dataStore.activeSegmentIndex
         });
         
+        // Re-render all routes to update colors (dimmed vs full)
+        routeRenderer.renderAll(dataStore.routes, dataStore.activeRouteId, dataStore.isEditing, dataStore.activeSegmentIndex);
+        
         if (!dataStore.isEditing && !dataStore.isViewingDetail) {
             this._updateRoutesList();
         }

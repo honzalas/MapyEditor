@@ -82,6 +82,23 @@ class RouteRenderer {
         const allLines = [];
         const allMarkers = [];
         
+        // Determine opacity and weight based on mode
+        let opacity, weight;
+        if (isActive) {
+            // Active route (detail or edit mode)
+            if (isEditing) {
+                opacity = CONFIG.ROUTE_LINE.OPACITY_EDIT;
+                weight = CONFIG.ROUTE_LINE.WEIGHT_EDIT;
+            } else {
+                opacity = CONFIG.ROUTE_LINE.OPACITY_DETAIL;
+                weight = CONFIG.ROUTE_LINE.WEIGHT_DETAIL;
+            }
+        } else {
+            // Normal mode (inactive route)
+            opacity = CONFIG.ROUTE_LINE.OPACITY_NORMAL;
+            weight = CONFIG.ROUTE_LINE.WEIGHT_NORMAL;
+        }
+        
         // Render each segment
         route.segments.forEach((segment, segmentIndex) => {
             const isActiveSegment = isActive && isEditing && segmentIndex === activeSegmentIndex;
@@ -93,8 +110,8 @@ class RouteRenderer {
                 
                 const lineOptions = {
                     color: color,
-                    weight: CONFIG.ROUTE_LINE.WEIGHT_NORMAL,
-                    opacity: CONFIG.ROUTE_LINE.OPACITY_NORMAL
+                    weight: weight,
+                    opacity: opacity
                 };
                 
                 // Dashed line for manual segments (only in edit mode for active route)
@@ -345,15 +362,34 @@ class RouteRenderer {
         const layers = mapManager.getRouteLayers(routeId);
         if (layers && layers.lines) {
             layers.lines.forEach(line => {
+                const route = dataStore.getRoute(routeId);
+                const isActive = route && route.id === dataStore.activeRouteId;
+                const isEditing = dataStore.isEditing && isActive;
+                
                 if (highlight) {
+                    // Use full opacity when highlighting
                     line.setStyle({ 
                         weight: CONFIG.ROUTE_LINE.WEIGHT_HIGHLIGHT, 
                         opacity: CONFIG.ROUTE_LINE.OPACITY_HIGHLIGHT 
                     });
                 } else {
+                    // Restore appropriate opacity based on route state
+                    let opacity, weight;
+                    if (isActive) {
+                        if (isEditing) {
+                            opacity = CONFIG.ROUTE_LINE.OPACITY_EDIT;
+                            weight = CONFIG.ROUTE_LINE.WEIGHT_EDIT;
+                        } else {
+                            opacity = CONFIG.ROUTE_LINE.OPACITY_DETAIL;
+                            weight = CONFIG.ROUTE_LINE.WEIGHT_DETAIL;
+                        }
+                    } else {
+                        opacity = CONFIG.ROUTE_LINE.OPACITY_NORMAL;
+                        weight = CONFIG.ROUTE_LINE.WEIGHT_NORMAL;
+                    }
                     line.setStyle({ 
-                        weight: CONFIG.ROUTE_LINE.WEIGHT_NORMAL, 
-                        opacity: CONFIG.ROUTE_LINE.OPACITY_NORMAL 
+                        weight: weight, 
+                        opacity: opacity 
                     });
                 }
             });

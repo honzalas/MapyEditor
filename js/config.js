@@ -33,10 +33,14 @@ export const CONFIG = {
     
     // Route line styles
     ROUTE_LINE: {
-        WEIGHT_NORMAL: 5,       // Normal route line width
-        WEIGHT_HIGHLIGHT: 7,    // Highlighted route line width (on hover)
-        OPACITY_NORMAL: 0.95,   // Normal route opacity
-        OPACITY_HIGHLIGHT: 1    // Highlighted route opacity
+        WEIGHT_NORMAL: 4,       // Normal route line width
+        WEIGHT_HIGHLIGHT: 5,    // Highlighted route line width (on hover)
+        WEIGHT_DETAIL: 5,       // Route line width in detail mode
+        WEIGHT_EDIT: 5,         // Route line width in edit mode
+        OPACITY_NORMAL: 0.5,    // Normal route opacity
+        OPACITY_HIGHLIGHT: 1,   // Highlighted route opacity
+        OPACITY_DETAIL: 1,      // Route opacity in detail mode
+        OPACITY_EDIT: 1         // Route opacity in edit mode
     }
 };
 
