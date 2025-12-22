@@ -107,11 +107,14 @@ class App {
             });
         }
         
-        // Source selector (prototype - no action)
+        // Source selector (prototype - show message if trying to switch)
         const sourceSelect = document.getElementById('source-select');
         if (sourceSelect) {
             sourceSelect.addEventListener('change', (e) => {
-                // Do nothing for prototype - just prevent default behavior if needed
+                if (e.target.value !== 'source1') {
+                    alert('V prototypu nelze přepínat zdroje. Zůstává aktivní "Turistika Rakousko".');
+                    e.target.value = 'source1'; // Reset to default
+                }
             });
         }
     }
