@@ -9,7 +9,7 @@
 import { CONFIG } from './config.js';
 
 // Data layer
-import { dataStore } from './models/DataStore.js';
+import { dataStore, Segment } from './models/DataStore.js';
 
 // Storage layer
 import { gpxStorage } from './storage/GpxStorage.js';
@@ -191,6 +191,12 @@ class App {
         contextMenu.setModeChangeCallback(async (data, newMode) => {
             if (data.type === 'waypoint') {
                 await this._changeSegmentMode(data.segmentIndex, newMode);
+            }
+        });
+        
+        contextMenu.setSplitCallback(async (data) => {
+            if (data.type === 'waypoint') {
+                await this._splitSegment(data.segmentIndex, data.waypointIndex);
             }
         });
     }
@@ -735,6 +741,68 @@ class App {
         
         // Insert the new waypoint
         await routeCalculator.insertWaypoint(segment, insertIndex, lat, lon);
+        
+        this._renderActiveRoute();
+        this._updateUI();
+    }
+    
+    /**
+     * Split segment at a waypoint into two segments
+     * @param {number} segmentIndex - Index of segment to split
+     * @param {number} waypointIndex - Index of waypoint to split at (will be end of first, start of second)
+     */
+    async _splitSegment(segmentIndex, waypointIndex) {
+        const route = dataStore.activeRoute;
+        if (!route) return;
+        
+        const segment = route.segments[segmentIndex];
+        if (!segment) return;
+        
+        // Validate: waypoint must not be at edges
+        if (waypointIndex <= 0 || waypointIndex >= segment.waypoints.length - 1) {
+            console.error('Cannot split at edge waypoint');
+            return;
+        }
+        
+        // Show loading indicator
+        panelManager.showLoading();
+        
+        try {
+            // Get the split waypoint (will be duplicated)
+            const splitWaypoint = { ...segment.waypoints[waypointIndex] };
+            
+            // First segment: waypoints from start to split waypoint (inclusive)
+            const firstWaypoints = segment.waypoints.slice(0, waypointIndex + 1);
+            
+            // Second segment: split waypoint (copy) + remaining waypoints
+            const secondWaypoints = [splitWaypoint, ...segment.waypoints.slice(waypointIndex + 1)];
+            
+            // Update first segment with new waypoints
+            segment.waypoints = firstWaypoints;
+            
+            // Create new segment with same mode
+            const newSegment = new Segment({
+                mode: segment.mode,
+                waypoints: secondWaypoints,
+                geometry: []
+            });
+            
+            // Insert new segment right after the original one
+            route.segments.splice(segmentIndex + 1, 0, newSegment);
+            
+            // Recalculate geometry for both segments
+            await routeCalculator.recalculateSegment(segment);
+            await routeCalculator.recalculateSegment(newSegment);
+            
+            // Stay in editing mode with first segment active (segmentIndex remains the same)
+            // No need to change activeSegmentIndex as the first segment stays at the same position
+            
+        } catch (error) {
+            console.error('Error splitting segment:', error);
+            alert('Nepodařilo se rozdělit segment: ' + error.message);
+        } finally {
+            panelManager.hideLoading();
+        }
         
         this._renderActiveRoute();
         this._updateUI();

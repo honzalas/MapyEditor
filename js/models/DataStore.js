@@ -151,11 +151,24 @@ export class Route {
     
     /**
      * Get display title for the route
-     * Uses coalesce(ref, name, "noname")
+     * - If both ref and name are filled: "ref - name"
+     * - If only one is filled: that value without dash
+     * - If neither is filled: "noname"
      * @returns {string}
      */
     getTitle() {
-        return this.ref || this.name || 'noname';
+        const hasRef = this.ref && this.ref.trim() !== '';
+        const hasName = this.name && this.name.trim() !== '';
+        
+        if (hasRef && hasName) {
+            return `${this.ref} - ${this.name}`;
+        } else if (hasRef) {
+            return this.ref;
+        } else if (hasName) {
+            return this.name;
+        } else {
+            return 'noname';
+        }
     }
     
     /**

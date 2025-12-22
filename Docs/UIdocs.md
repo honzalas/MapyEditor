@@ -293,6 +293,27 @@ Segment se aktivuje (přepne do editace) třemi způsoby:
 3. Potvrdit smazání
 4. Segment se odstraní (včetně všech waypointů)
 
+### Rozdělení segmentu
+
+Segment lze rozdělit na dva segmenty v průjezdním bodu (waypointu), který není na kraji.
+
+**Postup:**
+1. Pravý klik na průjezdní bod (ne na první ani poslední) aktivního segmentu
+2. Vybrat **"Rozdělit segment"** z kontextového menu
+3. Segment se rozdělí na dva segmenty v daném bodě
+
+**Výsledek:**
+- **První segment**: Obsahuje waypointy od začátku do rozdělovacího bodu (včetně)
+- **Druhý segment**: Obsahuje kopii rozdělovacího bodu a všechny zbývající waypointy
+- **Mód**: Nový segment má stejný mód (routing/manual) jako původní segment
+- **Geometrie**: Obě geometrie se přepočítají (routing přes API, manual přímé čáry)
+- **Pozice**: Nový segment se přidá hned za původní segment v seznamu segmentů
+- **Aktivní segment**: V editačním módu zůstane aktivní první segment
+
+**Omezení:**
+- Funkce je dostupná pouze pro průjezdní body, které nejsou na kraji (ne první, ne poslední waypoint)
+- Funkce je dostupná pouze v editačním módu
+
 ### Změna módu segmentu (ze seznamu)
 
 1. Klik na menu tlačítko (⋮) u segmentu
@@ -401,6 +422,8 @@ Zobrazí se při **pravém kliku na waypoint** aktivního segmentu:
 │ ⏱ Změnit segment na        │
 │    plánování                │
 │ ✏️ Změnit segment na ruční │
+├─────────────────────────────┤
+│ ✂️ Rozdělit segment        │
 └─────────────────────────────┘
 ```
 
@@ -408,6 +431,7 @@ Zobrazí se při **pravém kliku na waypoint** aktivního segmentu:
 - **Smazat bod**: Odstraní waypoint. Pokud by segment měl <2 body, zobrazí se dotaz na smazání segmentu.
 - **Změnit segment na plánování**: Dostupné pouze pokud segment má ≤15 waypointů. Změní mód celého segmentu.
 - **Změnit segment na ruční**: Změní mód celého segmentu na manual.
+- **Rozdělit segment**: Dostupné pouze pro průjezdní body, které nejsou na kraji (ne první, ne poslední). Rozdělí segment na dva segmenty v daném bodě. Rozdělovací bod bude koncem prvního segmentu a jeho kopie začátkem druhého segmentu. Nový segment bude mít stejný mód jako původní segment. Po rozdělení se přepočítá geometrie obou segmentů (routing přes API, manual přímé čáry). V editačním módu zůstane aktivní první segment.
 
 **Poznámka**: Změna módu se týká **celého segmentu**, ne jen jednoho waypointu.
 

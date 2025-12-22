@@ -16,6 +16,7 @@ class ContextMenu {
         this._data = null;
         this._onDelete = null;
         this._onModeChange = null;
+        this._onSplit = null;
     }
     
     /**
@@ -49,6 +50,14 @@ class ContextMenu {
             this.hide();
         });
         
+        document.getElementById('context-menu-split').addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (this._data && this._onSplit) {
+                this._onSplit(this._data);
+            }
+            this.hide();
+        });
+        
         // Hide on any click outside
         document.addEventListener('click', () => {
             this.hide();
@@ -72,6 +81,14 @@ class ContextMenu {
     }
     
     /**
+     * Set split callback (splits segment at waypoint)
+     * @param {Function} callback - (data) => void
+     */
+    setSplitCallback(callback) {
+        this._onSplit = callback;
+    }
+    
+    /**
      * Show the context menu
      * @param {number} x - X position (pixels)
      * @param {number} y - Y position (pixels)
@@ -87,6 +104,7 @@ class ContextMenu {
         // Show/hide mode change options based on current segment mode
         const routingOption = document.getElementById('context-menu-mode-routing');
         const manualOption = document.getElementById('context-menu-mode-manual');
+        const splitOption = document.getElementById('context-menu-split');
         
         if (data.type === 'waypoint') {
             // Mode change is for the whole segment - show opposite mode
@@ -102,10 +120,17 @@ class ContextMenu {
                 }
                 manualOption.style.display = 'none';
             }
+            
+            // Show split option only for waypoints that are not at the edges (not first, not last)
+            // waypointIndex: 0 = first, waypointCount-1 = last
+            const isNotAtEdge = data.waypointIndex > 0 && 
+                                data.waypointIndex < (data.waypointCount - 1);
+            splitOption.style.display = isNotAtEdge ? 'flex' : 'none';
         } else {
             // Hide mode options for non-waypoint context
             routingOption.style.display = 'none';
             manualOption.style.display = 'none';
+            splitOption.style.display = 'none';
         }
         
         // Update mode change text to indicate it affects whole segment
@@ -136,3 +161,7 @@ class ContextMenu {
 
 // Singleton instance
 export const contextMenu = new ContextMenu();
+
+   
+
+
