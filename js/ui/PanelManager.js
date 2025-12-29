@@ -591,9 +591,11 @@ class PanelManager {
     _updateDetailPanel(route) {
         if (!this._detailAttributes || !this._detailSegmentsList) return;
         
-        // Update title with route name
+        // Update title with route name and subtitle
         if (this._detailTitle) {
-            this._detailTitle.textContent = route.getTitle();
+            const title = route.getTitle();
+            const subtitle = route.getSubtitle();
+            this._detailTitle.innerHTML = `<span class="detail-title-name">${title}</span><span class="detail-title-subtitle">${subtitle}</span>`;
         }
         
         // Build attributes display
@@ -813,9 +815,7 @@ class PanelManager {
             
             const infoDiv = document.createElement('div');
             infoDiv.className = 'route-item-info';
-            const segmentCount = route.segments.length;
-            const segmentText = segmentCount === 1 ? '1 segment' : `${segmentCount} segmentů`;
-            infoDiv.textContent = `${route.getSubtitle()} • ${segmentText}`;
+            infoDiv.textContent = route.getSubtitle();
             
             textDiv.appendChild(nameDiv);
             textDiv.appendChild(infoDiv);

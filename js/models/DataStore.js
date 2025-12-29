@@ -173,11 +173,14 @@ export class Route {
     
     /**
      * Get display subtitle for the route
-     * Shows route type in Czech
+     * Shows route type in Czech and segment count
      * @returns {string}
      */
     getSubtitle() {
-        return getEnumLabel(ROUTE_TYPE_ENUM, this.routeType);
+        const routeTypeLabel = getEnumLabel(ROUTE_TYPE_ENUM, this.routeType);
+        const segmentCount = this.segments.length;
+        const segmentText = segmentCount === 1 ? '1 segment' : `${segmentCount} segmentů`;
+        return `${routeTypeLabel} • ${segmentText}`;
     }
     
     /**
