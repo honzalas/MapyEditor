@@ -29,6 +29,7 @@ class PanelManager {
         // Detail panel elements
         this._detailAttributes = null;
         this._detailSegmentsList = null;
+        this._detailTitle = null;
         
         // Form elements
         this._routeTypeSelect = null;
@@ -91,6 +92,9 @@ class PanelManager {
         // Detail panel elements
         this._detailAttributes = document.getElementById('detail-attributes');
         this._detailSegmentsList = document.getElementById('detail-segments-list');
+        // Find h3 in detail panel header
+        const detailHeader = document.querySelector('#detail-panel .panel-header-row h3');
+        this._detailTitle = detailHeader;
         
         // Form elements
         this._routeTypeSelect = document.getElementById('route-type');
@@ -586,6 +590,11 @@ class PanelManager {
      */
     _updateDetailPanel(route) {
         if (!this._detailAttributes || !this._detailSegmentsList) return;
+        
+        // Update title with route name
+        if (this._detailTitle) {
+            this._detailTitle.textContent = route.getTitle();
+        }
         
         // Build attributes display
         const attributes = [
