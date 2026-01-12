@@ -290,6 +290,18 @@ class App {
             await this._changeSegmentMode(segmentIndex, newMode);
         });
         
+        panelManager.setCopySegmentCallback((segmentIndex) => {
+            this._copySegmentToClipboard(segmentIndex);
+        });
+        
+        panelManager.setPasteSegmentCallback(() => {
+            this._pasteSegmentFromClipboard();
+        });
+        
+        panelManager.setClearClipboardCallback(() => {
+            this._clearClipboard();
+        });
+        
         // Detail panel callbacks
         panelManager.setCloseDetailCallback(() => {
             this._closeDetail();
@@ -382,6 +394,12 @@ class App {
             this._updateRoutesList();
         });
         dataStore.on('search:changed', () => this._updateRoutesList());
+        dataStore.on('clipboard:changed', () => {
+            // Update clipboard UI when clipboard changes
+            if (dataStore.isEditing) {
+                this._updateUI();
+            }
+        });
     }
     
     // ==================
@@ -534,6 +552,56 @@ class App {
         
         dataStore.deleteSegment(segmentIndex);
         this._renderActiveRoute();
+        this._updateUI();
+    }
+    
+    _copySegmentToClipboard(segmentIndex) {
+        if (!dataStore.isEditing) return;
+        
+        const route = dataStore.activeRoute;
+        if (!route) return;
+        
+        const segment = route.segments[segmentIndex];
+        if (!segment) return;
+        
+        dataStore.copySegmentToClipboard(segment);
+        this._updateUI();
+    }
+    
+    async _pasteSegmentFromClipboard() {
+        if (!dataStore.isEditing) return;
+        if (!dataStore.hasClipboardSegment()) return;
+        
+        const route = dataStore.activeRoute;
+        if (!route) return;
+        
+        const clipboardSegment = dataStore.getClipboardSegment();
+        if (!clipboardSegment) return;
+        
+        // Add the segment to the route
+        const newIndex = route.addSegment(clipboardSegment.mode);
+        const newSegment = route.segments[newIndex];
+        
+        // Copy waypoints
+        newSegment.waypoints = clipboardSegment.waypoints.map(wp => ({ ...wp }));
+        
+        // If it's a routing segment, recalculate geometry
+        if (newSegment.mode === 'routing' && newSegment.waypoints.length >= 2) {
+            await routeCalculator.recalculateSegment(newSegment);
+        } else if (newSegment.mode === 'manual') {
+            // For manual segments, geometry = waypoints
+            newSegment.geometry = newSegment.waypoints.map(wp => ({ ...wp }));
+        }
+        
+        // Switch to the new segment
+        dataStore.setActiveSegment(newIndex);
+        
+        this._renderActiveRoute();
+        this._updateUI();
+    }
+    
+    _clearClipboard() {
+        dataStore.clearClipboard();
         this._updateUI();
     }
     

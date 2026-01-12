@@ -322,6 +322,52 @@ Segment lze rozdělit na dva segmenty v průjezdním bodu (waypointu), který ne
 
 **Omezení**: Změna na plánování je možná pouze pokud segment má ≤15 waypointů.
 
+### Schránka segmentů
+
+V editačním panelu, pod seznamem segmentů, se zobrazí sekce **"Schránka"** (pouze pokud je ve schránce uložen segment):
+
+```
+┌─────────────────────────────┐
+│ Schránka      [Vložit do    │
+│                trasy]       │
+├─────────────────────────────┤
+│ Plánovaný (5 bodů)         │
+├─────────────────────────────┤
+│ Vyčistit schránku           │
+└─────────────────────────────┘
+```
+
+**Funkce:**
+
+#### Kopírování segmentu do schránky
+
+1. Klik na menu tlačítko (⋮) u segmentu v seznamu
+2. Vybrat **"Kopírovat do schránky"**
+3. Segment se zkopíruje do virtuální schránky (jeho waypointy a typ plánování)
+4. Sekce "Schránka" se zobrazí pod seznamem segmentů
+
+**Omezení:**
+- Schránka může obsahovat maximálně 1 segment
+- Při kopírování nového segmentu se předchozí obsah schránky přepíše
+
+#### Vložení segmentu ze schránky
+
+1. Pokud je ve schránce segment, zobrazí se tlačítko **"Vložit do trasy"** (modré, vpravo od nadpisu "Schránka")
+2. Klik na tlačítko **"Vložit do trasy"**
+3. Segment ze schránky se zkopíruje do aktuální trasy jako nový segment
+4. Pro routing segmenty se automaticky přepočítá geometrie přes API
+5. Nový segment se automaticky aktivuje pro editaci
+
+**Poznámka:** Segment zůstává ve schránce i po vložení, takže je možné ho vložit vícekrát.
+
+#### Vyčištění schránky
+
+1. Klik na odkaz **"Vyčistit schránku"** pod informacemi o segmentu
+2. Segment se odstraní ze schránky
+3. Sekce "Schránka" zmizí
+
+**Poznámka:** Schránka je trvalá během celé relace aplikace - segment zůstává ve schránce i po zavření a otevření jiné trasy.
+
 ## Interakce s mapou
 
 ### Klik na mapu
@@ -441,6 +487,8 @@ Zobrazí se při kliku na menu tlačítko (⋮) u segmentu v seznamu:
 
 ```
 ┌─────────────────────────────┐
+│ 📋 Kopírovat do schránky     │
+├─────────────────────────────┤
 │ ⏱ Změnit na plánování      │
 │ ✏️ Změnit na ruční         │
 ├─────────────────────────────┤
@@ -449,6 +497,7 @@ Zobrazí se při kliku na menu tlačítko (⋮) u segmentu v seznamu:
 ```
 
 **Možnosti:**
+- **Kopírovat do schránky**: Zkopíruje segment (jeho waypointy a typ plánování) do virtuální schránky. Schránka může obsahovat maximálně 1 segment.
 - **Změnit na plánování**: Dostupné pouze pokud segment má ≤15 waypointů
 - **Změnit na ruční**: Vždy dostupné
 - **Smazat segment**: Vyžaduje potvrzení

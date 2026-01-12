@@ -6,6 +6,7 @@
  */
 
 import { ROUTE_TYPE_ENUM, ROUTE_COLOR_ENUM, ROUTE_NETWORK_ENUM, CONFIG } from '../config.js';
+import { dataStore } from '../models/DataStore.js';
 
 /**
  * Manages the right panel UI
@@ -70,6 +71,9 @@ class PanelManager {
         this._onAddSegment = null;
         this._onDeleteSegment = null;
         this._onChangeSegmentMode = null;
+        this._onCopySegment = null;
+        this._onPasteSegment = null;
+        this._onClearClipboard = null;
     }
     
     /**
@@ -114,6 +118,12 @@ class PanelManager {
         this._segmentsList = document.getElementById('segments-list');
         this._addSegmentBtn = document.getElementById('btn-add-segment');
         this._segmentMenu = document.getElementById('segment-menu');
+        
+        // Clipboard elements
+        this._clipboardSection = document.getElementById('clipboard-section');
+        this._clipboardSegmentItem = document.getElementById('clipboard-segment-item');
+        this._btnPasteSegment = document.getElementById('btn-paste-segment');
+        this._btnClearClipboard = document.getElementById('btn-clear-clipboard');
         
         this._populateSelects();
         this._bindEvents();
@@ -350,6 +360,18 @@ class PanelManager {
         const menuDeleteSegment = document.getElementById('menu-delete-segment');
         const menuSegmentToRouting = document.getElementById('menu-segment-to-routing');
         const menuSegmentToManual = document.getElementById('menu-segment-to-manual');
+        const menuSegmentCopy = document.getElementById('menu-segment-copy');
+        
+        if (menuSegmentCopy) {
+            menuSegmentCopy.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this._segmentMenu.classList.remove('visible');
+                const segmentIndex = parseInt(this._segmentMenu.dataset.segmentIndex);
+                if (this._onCopySegment && !isNaN(segmentIndex)) {
+                    this._onCopySegment(segmentIndex);
+                }
+            });
+        }
         
         if (menuDeleteSegment) {
             menuDeleteSegment.addEventListener('click', (e) => {
@@ -380,6 +402,23 @@ class PanelManager {
                 const segmentIndex = parseInt(this._segmentMenu.dataset.segmentIndex);
                 if (this._onChangeSegmentMode && !isNaN(segmentIndex)) {
                     this._onChangeSegmentMode(segmentIndex, 'manual');
+                }
+            });
+        }
+        
+        // Clipboard buttons
+        if (this._btnPasteSegment) {
+            this._btnPasteSegment.addEventListener('click', () => {
+                if (this._onPasteSegment) {
+                    this._onPasteSegment();
+                }
+            });
+        }
+        
+        if (this._btnClearClipboard) {
+            this._btnClearClipboard.addEventListener('click', () => {
+                if (this._onClearClipboard) {
+                    this._onClearClipboard();
                 }
             });
         }
@@ -459,6 +498,9 @@ class PanelManager {
     setAddSegmentCallback(callback) { this._onAddSegment = callback; }
     setDeleteSegmentCallback(callback) { this._onDeleteSegment = callback; }
     setChangeSegmentModeCallback(callback) { this._onChangeSegmentMode = callback; }
+    setCopySegmentCallback(callback) { this._onCopySegment = callback; }
+    setPasteSegmentCallback(callback) { this._onPasteSegment = callback; }
+    setClearClipboardCallback(callback) { this._onClearClipboard = callback; }
     
     // Detail callbacks
     setCloseDetailCallback(callback) { this._onCloseDetail = callback; }
@@ -569,6 +611,9 @@ class PanelManager {
             // Update segments list
             this._updateSegmentsList(activeRoute, activeSegmentIndex);
             
+            // Update clipboard UI
+            this._updateClipboard();
+            
             // Enable save and cancel buttons
             document.getElementById('btn-save-route').disabled = false;
             document.getElementById('btn-cancel-route').disabled = false;
@@ -676,6 +721,40 @@ class PanelManager {
      * Update the segments list
      * @private
      */
+    /**
+     * Update clipboard UI
+     * @private
+     */
+    _updateClipboard() {
+        if (!this._clipboardSection || !this._clipboardSegmentItem) return;
+        
+        if (dataStore.hasClipboardSegment()) {
+            const segment = dataStore.getClipboardSegment();
+            this._clipboardSection.style.display = 'block';
+            
+            // Update clipboard segment item
+            this._clipboardSegmentItem.innerHTML = '';
+            
+            const segmentInfo = document.createElement('div');
+            segmentInfo.className = 'segment-info';
+            
+            const segmentType = document.createElement('span');
+            segmentType.className = 'segment-type';
+            segmentType.textContent = segment.mode === 'routing' ? 'Plánovaný' : 'Ruční';
+            
+            const segmentWpCount = document.createElement('span');
+            segmentWpCount.className = 'segment-wp-count';
+            segmentWpCount.textContent = `(${segment.waypoints.length} bodů)`;
+            
+            segmentInfo.appendChild(segmentType);
+            segmentInfo.appendChild(segmentWpCount);
+            
+            this._clipboardSegmentItem.appendChild(segmentInfo);
+        } else {
+            this._clipboardSection.style.display = 'none';
+        }
+    }
+    
     _updateSegmentsList(route, activeSegmentIndex) {
         if (!this._segmentsList) return;
         

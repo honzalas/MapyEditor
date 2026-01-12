@@ -338,6 +338,9 @@ class DataStore extends EventEmitter {
         // Key states
         this._ctrlPressed = false;
         this._altPressed = false;
+        
+        // Clipboard for segments (max 1 segment)
+        this._segmentClipboard = null;
     }
     
     // ==================
@@ -843,6 +846,45 @@ class DataStore extends EventEmitter {
         }
         
         return false;
+    }
+    
+    // ==================
+    // SEGMENT CLIPBOARD
+    // ==================
+    
+    /**
+     * Copy segment to clipboard
+     * @param {Segment} segment - Segment to copy
+     */
+    copySegmentToClipboard(segment) {
+        if (!segment) return;
+        // Clone the segment to avoid reference issues
+        this._segmentClipboard = segment.clone();
+        this.emit('clipboard:changed');
+    }
+    
+    /**
+     * Get segment from clipboard
+     * @returns {Segment|null}
+     */
+    getClipboardSegment() {
+        return this._segmentClipboard ? this._segmentClipboard.clone() : null;
+    }
+    
+    /**
+     * Check if clipboard has a segment
+     * @returns {boolean}
+     */
+    hasClipboardSegment() {
+        return this._segmentClipboard !== null;
+    }
+    
+    /**
+     * Clear clipboard
+     */
+    clearClipboard() {
+        this._segmentClipboard = null;
+        this.emit('clipboard:changed');
     }
 }
 
