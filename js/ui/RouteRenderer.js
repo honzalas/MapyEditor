@@ -235,12 +235,28 @@ class RouteRenderer {
                 markerSize = MARKER_SIZES.WAYPOINT;
             }
             
+            // Ordinal number (1-based): start is 1, first waypoint is 2, etc.
+            const ordinalNumber = index + 1;
+            
+            // Create HTML with marker circle and label below
+            const markerHtml = `
+                <div style="display: flex; flex-direction: column; align-items: center;">
+                    <div style="width: ${markerSize}px; height: ${markerSize}px; background: ${markerColor}; border: 3px solid white; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>
+                    <div class="waypoint-label" style="margin-top: 2px; font-size: 11px; font-weight: 600; color: #000000; text-shadow: -1px -1px 0 #ffffff, 1px -1px 0 #ffffff, -1px 1px 0 #ffffff, 1px 1px 0 #ffffff, -1px 0 0 #ffffff, 1px 0 0 #ffffff, 0 -1px 0 #ffffff, 0 1px 0 #ffffff; line-height: 1; white-space: nowrap;">${ordinalNumber}</div>
+                </div>
+            `;
+            
+            // Calculate icon size to accommodate marker + label
+            const iconHeight = markerSize + 18; // marker + spacing + label height
+            const iconWidth = Math.max(markerSize, 20); // at least 20px for label
+            
             const marker = L.marker([wp.lat, wp.lon], {
                 draggable: true,
                 icon: L.divIcon({
                     className: 'vertex-marker',
-                    html: `<div style="width: ${markerSize}px; height: ${markerSize}px; background: ${markerColor}; border: 3px solid white; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>`,
-                    iconSize: [markerSize, markerSize]
+                    html: markerHtml,
+                    iconSize: [iconWidth, iconHeight],
+                    iconAnchor: [iconWidth / 2, markerSize / 2] // Anchor at center of marker circle
                 })
             });
             
