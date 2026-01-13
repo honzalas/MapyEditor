@@ -12,6 +12,7 @@ class MapManager {
     constructor() {
         this._map = null;
         this._tileLayers = {};
+        this._overlayLayers = {}; // Overlay layers (heatmap tiles)
         this._routeLayers = {}; // routeId -> { lines, markers }
     }
     
@@ -37,7 +38,7 @@ class MapManager {
         // Create map
         this._map = L.map(containerId).setView(CONFIG.MAP.CENTER, CONFIG.MAP.ZOOM);
         
-        // Create tile layers
+        // Create base tile layers
         this._tileLayers = {
             'Základní': L.tileLayer(`https://api.mapy.com/v1/maptiles/basic/256/{z}/{x}/{y}?apikey=${CONFIG.API_KEY}`, {
                 minZoom: CONFIG.MAP.MIN_ZOOM,
@@ -59,13 +60,34 @@ class MapManager {
                 maxZoom: CONFIG.MAP.MAX_ZOOM,
                 attribution: '<a href="https://api.mapy.com/copyright" target="_blank">&copy; Seznam.cz a.s. a další</a>',
             }),
+            'OSM': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                minZoom: CONFIG.MAP.MIN_ZOOM,
+                maxZoom: CONFIG.MAP.MAX_ZOOM,
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors',
+            }),
+        };
+        
+        // Create overlay layers (heatmap tiles) - grouped together
+        const mapyboxHeatmap = L.tileLayer('https://heatmap-tiles.mapy.dev.dszn.cz/v2-mapybox-ma2/{z}/{x}/{y}', {
+            minZoom: CONFIG.MAP.MIN_ZOOM,
+            maxZoom: CONFIG.MAP.MAX_ZOOM,
+        });
+        const ninjaHeatmap = L.tileLayer('https://heatmap-tiles.mapy.dev.dszn.cz/v2-ninja-ma2/{z}/{x}/{y}', {
+            minZoom: CONFIG.MAP.MIN_ZOOM,
+            maxZoom: CONFIG.MAP.MAX_ZOOM,
+        });
+        
+        // Group both heatmap layers together
+        this._heatmapLayerGroup = L.layerGroup([mapyboxHeatmap, ninjaHeatmap]);
+        this._overlayLayers = {
+            'Heatmap': this._heatmapLayerGroup,
         };
         
         // Add default layer
         this._tileLayers['Základní'].addTo(this._map);
         
-        // Add layer control
-        L.control.layers(this._tileLayers).addTo(this._map);
+        // Add layer control with base layers and overlays
+        L.control.layers(this._tileLayers, this._overlayLayers).addTo(this._map);
         
         // Apply grayscale filter to Basic map layer
         this._applyBasicLayerFilter();
@@ -74,6 +96,17 @@ class MapManager {
         this._map.on('baselayerchange', (e) => {
             if (e.name === 'Základní') {
                 this._applyBasicLayerFilter();
+            } else {
+                // Remove filter from other layers
+                Object.keys(this._tileLayers).forEach(layerName => {
+                    if (layerName !== 'Základní') {
+                        const layer = this._tileLayers[layerName];
+                        const container = layer.getContainer();
+                        if (container) {
+                            container.style.filter = '';
+                        }
+                    }
+                });
             }
         });
         
