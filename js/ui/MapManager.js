@@ -145,7 +145,7 @@ class MapManager {
     /**
      * Store route layer references
      * @param {number} routeId - Route ID
-     * @param {Object} layers - { lines: [], markers: [] }
+     * @param {Object} layers - { lines: [], markers: [], decorators: [] }
      */
     setRouteLayers(routeId, layers) {
         this._routeLayers[routeId] = layers;
@@ -172,6 +172,9 @@ class MapManager {
             }
             if (layers.markers) {
                 layers.markers.forEach(m => this._map.removeLayer(m));
+            }
+            if (layers.decorators) {
+                layers.decorators.forEach(d => this._map.removeLayer(d));
             }
             delete this._routeLayers[routeId];
         }

@@ -79,8 +79,10 @@ class RouteRenderer {
         }
         
         const color = route.getColor();
+        const routeTitle = route.getTitle();
         const allLines = [];
         const allMarkers = [];
+        const allDecorators = [];
         
         // Determine opacity and weight based on mode
         let opacity, weight;
@@ -121,6 +123,34 @@ class RouteRenderer {
                 
                 const line = L.polyline(latLngs, lineOptions);
                 mapManager.addLayer(line);
+                
+                // Create text decorator for route name (not in edit mode)
+                // Uses route.getTitle() to ensure consistency across the app
+                if (!isEditing && routeTitle) {
+                    const decorator = L.polylineDecorator(line, {
+                        patterns: [
+                            {
+                                offset: 0,
+                                repeat: 300,
+                                symbol: L.Symbol.marker({
+                                    rotate: true,
+                                    angleCorrection: -90,
+                                    markerOptions: {
+                                        icon: L.divIcon({
+                                            className: 'text-marker',
+                                            html: `<span style="color: ${color};">${routeTitle}</span>`,
+                                            iconSize: [0, 0],
+                                            iconAnchor: [0, 0]
+                                        }),
+                                        rotationOrigin: 'center center'
+                                    }
+                                })
+                            }
+                        ]
+                    });
+                    mapManager.addLayer(decorator);
+                    allDecorators.push(decorator);
+                }
                 
                 // Event handlers
                 if (!isActive) {
@@ -208,7 +238,7 @@ class RouteRenderer {
             }
         }
         
-        mapManager.setRouteLayers(route.id, { lines: allLines, markers: allMarkers });
+        mapManager.setRouteLayers(route.id, { lines: allLines, markers: allMarkers, decorators: allDecorators });
     }
     
     /**
