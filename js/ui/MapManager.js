@@ -67,6 +67,16 @@ class MapManager {
                 maxZoom: CONFIG.MAP.MAX_ZOOM,
                 attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors',
             }),
+           /* 'Kompass': L.tileLayer('https://map3.kompass.de/{z}/{x}/{y}/kompass_touristic?key=2ba8c124-38b6-11e7-ade1-e0cb4e14e399&proj=outdooractive', {
+                minZoom: CONFIG.MAP.MIN_ZOOM,
+                maxZoom: CONFIG.MAP.MAX_ZOOM,
+                attribution: '&copy; <a href="https://www.kompass.de" target="_blank">Kompass</a>',
+            }),
+            'Rother': L.tileLayer('https://rother-tiles.s3.eu-central-1.amazonaws.com/Wien_premium/{z}/{x}/{y}.png', {
+                minZoom: CONFIG.MAP.MIN_ZOOM,
+                maxZoom: CONFIG.MAP.MAX_ZOOM,
+                attribution: '&copy; <a href="https://www.rother.de" target="_blank">Rother</a>',
+            }),*/
         };
         
         // Create overlay layers (heatmap tiles) - grouped together
@@ -92,6 +102,21 @@ class MapManager {
         
         // Add default layer
         this._tileLayers['Základní'].addTo(this._map);
+        
+        // Apply referrerPolicy to all tile layers via DOM manipulation
+        this._applyReferrerPolicy();
+        
+        // Reapply referrerPolicy when layers change
+        this._map.on('baselayerchange', () => {
+            this._applyReferrerPolicy();
+        });
+        
+        // Apply referrerPolicy to newly loaded tiles
+        this._map.on('tileload', (e) => {
+            if (e.tile && e.tile.tagName === 'IMG') {
+                e.tile.referrerPolicy = 'no-referrer';
+            }
+        });
         
         // Add layer control with base layers and overlays
         const layerControl = L.control.layers(this._tileLayers, this._overlayLayers).addTo(this._map);
@@ -151,6 +176,38 @@ class MapManager {
             if (container) {
                 container.style.filter = 'grayscale(90%) opacity(60%)';
             }
+        }, 100);
+    }
+    
+    /**
+     * Apply referrerPolicy: no-referrer to all tile layer images
+     * @private
+     */
+    _applyReferrerPolicy() {
+        setTimeout(() => {
+            // Apply to all tile layer containers
+            Object.values(this._tileLayers).forEach(layer => {
+                const container = layer.getContainer();
+                if (container) {
+                    const images = container.querySelectorAll('img');
+                    images.forEach(img => {
+                        img.referrerPolicy = 'no-referrer';
+                    });
+                }
+            });
+            
+            // Apply to overlay layers
+            Object.values(this._overlayLayers).forEach(layer => {
+                if (layer.getContainer) {
+                    const container = layer.getContainer();
+                    if (container) {
+                        const images = container.querySelectorAll('img');
+                        images.forEach(img => {
+                            img.referrerPolicy = 'no-referrer';
+                        });
+                    }
+                }
+            });
         }, 100);
     }
     
