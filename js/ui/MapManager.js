@@ -13,7 +13,9 @@ class MapManager {
         this._map = null;
         this._tileLayers = {};
         this._overlayLayers = {}; // Overlay layers (heatmap tiles)
-        this._routeLayers = {}; // routeId -> { lines, markers }
+        this._routeLayers = {}; // routeId -> { lines, markers, decorators }
+        this._routesLayerGroup = null; // FeatureGroup containing all routes
+        this._routesHidden = false; // Flag to track if routes are hidden
     }
     
     /**
@@ -79,15 +81,38 @@ class MapManager {
         
         // Group both heatmap layers together
         this._heatmapLayerGroup = L.layerGroup([mapyboxHeatmap, ninjaHeatmap]);
+        
+        // Create FeatureGroup for all routes
+        this._routesLayerGroup = L.featureGroup();
+        
         this._overlayLayers = {
             'Heatmap': this._heatmapLayerGroup,
+            'Skrýt trasy': this._routesLayerGroup,
         };
         
         // Add default layer
         this._tileLayers['Základní'].addTo(this._map);
         
         // Add layer control with base layers and overlays
-        L.control.layers(this._tileLayers, this._overlayLayers).addTo(this._map);
+        const layerControl = L.control.layers(this._tileLayers, this._overlayLayers).addTo(this._map);
+        
+        // When checkbox is checked, hide routes (remove from map)
+        // When unchecked, show routes (add to map)
+        this._map.on('overlayadd', (e) => {
+            if (e.layer === this._routesLayerGroup) {
+                // Checkbox was checked - hide all routes
+                this._routesHidden = true;
+                this._hideAllRoutes();
+            }
+        });
+        
+        this._map.on('overlayremove', (e) => {
+            if (e.layer === this._routesLayerGroup) {
+                // Checkbox was unchecked - show all routes
+                this._routesHidden = false;
+                this._showAllRoutes();
+            }
+        });
         
         // Apply grayscale filter to Basic map layer
         this._applyBasicLayerFilter();
@@ -258,11 +283,87 @@ class MapManager {
     }
     
     /**
+     * Add route layer to map (respects hide routes setting)
+     * @param {Object} layer - Route layer (line, marker, or decorator)
+     */
+    addRouteLayer(layer) {
+        // Don't add route layers if routes are hidden
+        if (this._routesHidden) {
+            return;
+        }
+        layer.addTo(this._map);
+    }
+    
+    /**
+     * Check if routes are currently hidden
+     * @returns {boolean}
+     */
+    areRoutesHidden() {
+        return this._routesHidden;
+    }
+    
+    /**
      * Remove layer from map
      * @param {Object} layer - Leaflet layer
      */
     removeLayer(layer) {
         this._map.removeLayer(layer);
+    }
+    
+    /**
+     * Get the routes layer group (for adding route layers)
+     * @returns {L.FeatureGroup}
+     */
+    getRoutesLayerGroup() {
+        return this._routesLayerGroup;
+    }
+    
+    /**
+     * Hide all routes from map
+     * @private
+     */
+    _hideAllRoutes() {
+        Object.values(this._routeLayers).forEach(layers => {
+            if (layers.lines) {
+                layers.lines.forEach(line => {
+                    this._map.removeLayer(line);
+                });
+            }
+            if (layers.markers) {
+                layers.markers.forEach(marker => {
+                    this._map.removeLayer(marker);
+                });
+            }
+            if (layers.decorators) {
+                layers.decorators.forEach(decorator => {
+                    this._map.removeLayer(decorator);
+                });
+            }
+        });
+    }
+    
+    /**
+     * Show all routes on map
+     * @private
+     */
+    _showAllRoutes() {
+        Object.values(this._routeLayers).forEach(layers => {
+            if (layers.lines) {
+                layers.lines.forEach(line => {
+                    line.addTo(this._map);
+                });
+            }
+            if (layers.markers) {
+                layers.markers.forEach(marker => {
+                    marker.addTo(this._map);
+                });
+            }
+            if (layers.decorators) {
+                layers.decorators.forEach(decorator => {
+                    decorator.addTo(this._map);
+                });
+            }
+        });
     }
 }
 

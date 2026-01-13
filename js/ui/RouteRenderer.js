@@ -122,7 +122,7 @@ class RouteRenderer {
                 }
                 
                 const line = L.polyline(latLngs, lineOptions);
-                mapManager.addLayer(line);
+                mapManager.addRouteLayer(line);
                 
                 // Create text decorator for route name (not in edit mode)
                 // Uses route.getTitle() to ensure consistency across the app
@@ -148,7 +148,7 @@ class RouteRenderer {
                             }
                         ]
                     });
-                    mapManager.addLayer(decorator);
+                    mapManager.addRouteLayer(decorator);
                     allDecorators.push(decorator);
                 }
                 
@@ -290,7 +290,7 @@ class RouteRenderer {
                 })
             });
             
-            mapManager.addLayer(marker);
+            mapManager.addRouteLayer(marker);
             
             marker.on('dragend', () => {
                 if (this._onMarkerDragEnd) {
@@ -358,7 +358,7 @@ class RouteRenderer {
                 }
             });
             
-            mapManager.addLayer(startMarker);
+            mapManager.addRouteLayer(startMarker);
             markers.push(startMarker);
         }
         
@@ -392,7 +392,7 @@ class RouteRenderer {
                 }
             });
             
-            mapManager.addLayer(endMarker);
+            mapManager.addRouteLayer(endMarker);
             markers.push(endMarker);
         }
         
