@@ -11,7 +11,9 @@ class RoutesMenu {
         this._element = null;
         this._listElement = null;
         this._onRouteSelect = null;
+        this._onAddNote = null;
         this._justOpened = false;
+        this._latlng = null; // Store latlng for adding note
     }
     
     /**
@@ -45,61 +47,119 @@ class RoutesMenu {
     }
     
     /**
+     * Set add note callback
+     * @param {Function} callback - (latlng) => void
+     */
+    setAddNoteCallback(callback) {
+        this._onAddNote = callback;
+    }
+    
+    /**
      * Show the routes menu
      * @param {number} x - X position (pixels)
      * @param {number} y - Y position (pixels)
      * @param {Array} routeResults - Array of {route, distance, pixelDistance}
+     * @param {Object} latlng - Optional latlng for adding note
      */
-    show(x, y, routeResults) {
-        if (!routeResults || routeResults.length === 0) {
-            return;
-        }
+    show(x, y, routeResults, latlng = null) {
+        this._latlng = latlng;
         
         // Clear existing items
         this._listElement.innerHTML = '';
         
+        const hasRoutes = routeResults && routeResults.length > 0;
+        
         // Add route items
-        routeResults.forEach(result => {
-            const route = result.route;
-            const item = document.createElement('div');
-            item.className = 'routes-menu-item';
+        if (hasRoutes) {
+            routeResults.forEach(result => {
+                const route = result.route;
+                const item = document.createElement('div');
+                item.className = 'routes-menu-item';
+                
+                // Color indicator
+                const colorDiv = document.createElement('div');
+                colorDiv.className = 'routes-menu-item-color';
+                colorDiv.style.backgroundColor = route.getColor();
+                
+                // Content wrapper
+                const contentDiv = document.createElement('div');
+                contentDiv.className = 'routes-menu-item-content';
+                
+                // Route title
+                const titleDiv = document.createElement('div');
+                titleDiv.className = 'routes-menu-item-name';
+                titleDiv.textContent = route.getTitle();
+                
+                // Route subtitle
+                const subtitleDiv = document.createElement('div');
+                subtitleDiv.className = 'routes-menu-item-subtitle';
+                subtitleDiv.textContent = route.getSubtitle();
+                
+                contentDiv.appendChild(titleDiv);
+                contentDiv.appendChild(subtitleDiv);
+                
+                item.appendChild(colorDiv);
+                item.appendChild(contentDiv);
+                
+                // Click handler
+                item.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (this._onRouteSelect) {
+                        this._onRouteSelect(route.id);
+                    }
+                    this.hide();
+                });
+                
+                this._listElement.appendChild(item);
+            });
+        }
+        
+        // Add "Add note" option at the bottom
+        if (latlng) {
+            // Only add separator if there are routes above
+            if (hasRoutes) {
+                const separator = document.createElement('div');
+                separator.className = 'routes-menu-separator';
+                this._listElement.appendChild(separator);
+            }
             
-            // Color indicator
-            const colorDiv = document.createElement('div');
-            colorDiv.className = 'routes-menu-item-color';
-            colorDiv.style.backgroundColor = route.getColor();
+            const addNoteItem = document.createElement('div');
+            addNoteItem.className = 'routes-menu-item';
             
-            // Content wrapper
-            const contentDiv = document.createElement('div');
-            contentDiv.className = 'routes-menu-item-content';
+            const iconSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            iconSvg.setAttribute('viewBox', '0 0 24 24');
+            iconSvg.setAttribute('fill', 'none');
+            iconSvg.setAttribute('stroke', 'currentColor');
+            iconSvg.setAttribute('stroke-width', '2');
+            iconSvg.style.width = '16px';
+            iconSvg.style.height = '16px';
             
-            // Route title
-            const titleDiv = document.createElement('div');
-            titleDiv.className = 'routes-menu-item-name';
-            titleDiv.textContent = route.getTitle();
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            path.setAttribute('d', 'M12 5v14M5 12h14');
+            iconSvg.appendChild(path);
             
-            // Route subtitle
-            const subtitleDiv = document.createElement('div');
-            subtitleDiv.className = 'routes-menu-item-subtitle';
-            subtitleDiv.textContent = route.getSubtitle();
+            const text = document.createElement('span');
+            text.textContent = 'Přidat poznámku';
             
-            contentDiv.appendChild(titleDiv);
-            contentDiv.appendChild(subtitleDiv);
+            addNoteItem.appendChild(iconSvg);
+            addNoteItem.appendChild(text);
             
-            item.appendChild(colorDiv);
-            item.appendChild(contentDiv);
-            
-            // Click handler
-            item.addEventListener('click', (e) => {
+            addNoteItem.addEventListener('click', (e) => {
                 e.stopPropagation();
-                if (this._onRouteSelect) {
-                    this._onRouteSelect(route.id);
+                if (this._onAddNote && this._latlng) {
+                    this._onAddNote(this._latlng);
                 }
                 this.hide();
             });
             
-            this._listElement.appendChild(item);
-        });
+            this._listElement.appendChild(addNoteItem);
+        }
+        
+        // Hide header if no routes
+        const header = this._element.querySelector('.routes-menu-header');
+        if (header) {
+            header.style.display = hasRoutes ? 'block' : 'none';
+        }
         
         // Position the menu
         this._element.style.left = x + 'px';

@@ -58,15 +58,35 @@ Trasa obsahuje atributy a pole segmentů:
 - Atributy jsou **společné** pro celou trasu
 - Trasa musí mít **alespoň jeden validní segment** (≥2 waypointy)
 
+### Poznámka
+
+Poznámka je jednoduchý objekt s polohou a textem:
+
+```javascript
+{
+    id: number,
+    lat: number,   // Zeměpisná šířka
+    lon: number,   // Zeměpisná délka
+    text: string   // Text poznámky (může být prázdný)
+}
+```
+
+**Vlastnosti:**
+- Poznámky jsou **nezávislé** na trasách
+- Text může být prázdný
+- Poznámky se zobrazují jako modré markery na mapě
+- Správa poznámek probíhá přes datovou vrstvu (podobně jako trasy)
+
 ## Hlavní komponenty UI
 
 ### 1. Mapa
 
-Centrální komponenta pro zobrazení a interakci s trasami:
+Centrální komponenta pro zobrazení a interakci s trasami a poznámkami:
 - Zobrazuje všechny trasy a jejich segmenty
+- Zobrazuje všechny poznámky jako modré markery
 - Umožňuje klikání pro přidávání bodů
 - Zobrazuje hover efekty a tooltips
-- Podporuje drag & drop waypointů
+- Podporuje drag & drop waypointů a poznámek
 
 ### 2. Pravý panel
 
@@ -369,6 +389,72 @@ V editačním panelu, pod seznamem segmentů, se zobrazí sekce **"Schránka"** 
 
 **Poznámka:** Schránka je trvalá během celé relace aplikace - segment zůstává ve schránce i po zavření a otevření jiné trasy.
 
+## Poznámky
+
+### Vytváření poznámky
+
+Poznámku lze vytvořit dvěma způsoby:
+
+1. **Pravý klik na mapu** (běžný režim nebo detail trasy):
+   - Zobrazí se menu s trasami v místě (pokud existují)
+   - Na konci menu je možnost **"Přidat poznámku"**
+   - Klik otevře popup okno pro zadání textu
+
+2. **Pravý klik na trasu** (běžný režim nebo detail trasy):
+   - Zobrazí se menu "Trasy v místě"
+   - Na konci menu je možnost **"Přidat poznámku"**
+   - Klik otevře popup okno pro zadání textu
+
+**Omezení:**
+- Poznámky nelze vytvářet v režimu editace trasy
+
+### Editace poznámky
+
+1. **Pravý klik na marker poznámky** (běžný režim nebo detail trasy)
+2. Vybrat **"Editovat poznámku"** z kontextového menu
+3. Otevře se popup okno s textarea
+4. Upravit text (podporuje entery)
+5. Zavřít křížkem - změny se automaticky uloží
+
+**Popup okno:**
+- **Pozice**: Zobrazí se u markeru poznámky (automaticky se upraví, pokud by přesahovalo okraj obrazovky)
+- **Design**: Tmavý (černý) design pro lepší kontrast
+- **Textarea**: Podporuje více řádků, zachovává entery
+- **Ukládání**: Automatické při zavření křížkem (není možné stornovat změny, pouze ukládat)
+- **Klávesové zkratky**: ESC zavře a uloží poznámku
+
+**Omezení:**
+- Poznámky nelze editovat v režimu editace trasy (pouze tooltip pro čtení)
+
+### Přesunutí poznámky
+
+- **Drag & drop markeru** (běžný režim nebo detail trasy)
+- Marker má kurzor `grab` při najetí, `grabbing` při tažení
+- Pozice se automaticky uloží po ukončení tažení
+
+**Omezení:**
+- Poznámky nelze přesouvat v režimu editace trasy
+
+### Smazání poznámky
+
+1. **Pravý klik na marker poznámky** (běžný režim nebo detail trasy)
+2. Vybrat **"Smazat poznámku"** z kontextového menu
+3. Potvrdit smazání
+
+**Omezení:**
+- Poznámky nelze mazat v režimu editace trasy
+
+### Zobrazení poznámek
+
+- **Markery**: Modré Leaflet markery (standardní ikona)
+- **Tooltip**: Zobrazí se při hover nad markerem, obsahuje celý text poznámky
+- **Pozice tooltipu**: Cca 30px nad markerem (aby nepřekrýval marker a kontextové menu)
+- **Minimální šířka tooltipu**: 150px
+- **Podpora entrů**: Tooltip zachovává odřádkování textu
+
+**Omezení:**
+- V režimu editace trasy jsou poznámky pouze pro čtení (tooltip funguje, ale nelze je editovat, přetahovat ani přidávat)
+
 ## Interakce s mapou
 
 ### Klik na mapu
@@ -388,14 +474,21 @@ Chování závisí na kontextu:
 ### Pravý klik
 
 | Kontext | Akce | Výsledek |
-|---------|------|----------|
-| **Běžný režim** | Pravý klik na mapu | Zobrazí menu s trasami v místě |
+|---------|------|---------|
+| **Běžný režim** | Pravý klik na mapu | Zobrazí menu s trasami v místě + "Přidat poznámku" |
+| **Běžný režim** | Pravý klik na trasu | Zobrazí menu "Trasy v místě" + "Přidat poznámku" |
+| **Běžný režim** | Pravý klik na poznámku | Zobrazí kontextové menu poznámky |
+| **Detail trasy** | Pravý klik na mapu | Zobrazí menu s trasami v místě + "Přidat poznámku" |
+| **Detail trasy** | Pravý klik na poznámku | Zobrazí kontextové menu poznámky |
 | **Editace** | Pravý klik na waypoint | Zobrazí kontextové menu waypointu |
+| **Editace** | Pravý klik na poznámku | Žádná akce (pouze tooltip) |
 
 ### Drag & Drop
 
 - **Waypointy aktivního segmentu**: Draggable, přesunutí přepočítá geometrii
 - **Waypointy neaktivních segmentů**: Nejsou draggable (jsou to jen šedé markery)
+- **Poznámky** (běžný režim nebo detail trasy): Draggable, přesunutí uloží novou pozici
+- **Poznámky** (editace trasy): Nejsou draggable (pouze tooltip)
 
 ### Hover efekty
 
@@ -411,6 +504,8 @@ Chování závisí na kontextu:
 | **Nový segment (0 bodů)** | `crosshair` | Kříž - připraveno přidat start |
 | **CTRL drženo (přidávání routing bodu)** | `crosshair` | Kříž - připraveno přidat routing waypoint |
 | **Hover nad čárou (midpoint)** | `crosshair` | Kříž - připraveno přidat midpoint |
+| **Hover nad poznámkou** (běžný režim/detail) | `grab` | Sevřená ruka - marker lze přetáhnout |
+| **Drag poznámky** (běžný režim/detail) | `grabbing` | Sevřená ruka - právě se přetahuje |
 | **Výchozí v editaci** | `default` | Standardní kurzor |
 | **Běžný režim** | `default` | Standardní kurzor |
 
@@ -529,7 +624,7 @@ Zobrazí se při kliku na menu tlačítko (⋮) v hlavičce **detail panelu**:
 Zobrazí se ve dvou případech:
 
 1. **Klik na trasu** (běžný režim): Pokud je v místě více než jedna trasa
-2. **Pravý klik na mapu** (běžný režim): Zobrazí všechny trasy v místě
+2. **Pravý klik na mapu** (běžný režim): Zobrazí všechny trasy v místě (pokud existují)
 
 ```
 ┌─────────────────────────────┐
@@ -540,6 +635,8 @@ Zobrazí se ve dvou případech:
 ├─────────────────────────────┤
 │ 🔵 Krkonošská magistrála   │
 │    Počet segmentů: 5        │
+├─────────────────────────────┤
+│ ➕ Přidat poznámku          │
 └─────────────────────────────┘
 ```
 
@@ -548,6 +645,27 @@ Zobrazí se ve dvou případech:
 - Seřazení: Podle vzdálenosti (nejbližší první)
 - Zobrazení: Barevný indikátor, název, počet segmentů
 - Akce: Klik na trasu ji aktivuje pro editaci
+- **Přidat poznámku**: Zobrazí se vždy na konci menu (i když nejsou žádné trasy)
+
+**Poznámka:** Pokud v místě nejsou žádné trasy, sekce "Trasy v místě:" se nezobrazí, ale možnost "Přidat poznámku" je stále dostupná.
+
+### Menu poznámky
+
+Zobrazí se při **pravém kliku na marker poznámky** (pouze v běžném režimu nebo detailu trasy):
+
+```
+┌─────────────────────────────┐
+│ ✏️ Editovat poznámku        │
+│ 🗑 Smazat poznámku          │
+└─────────────────────────────┘
+```
+
+**Možnosti:**
+- **Editovat poznámku**: Otevře popup okno s textarea pro editaci textu
+- **Smazat poznámku**: Odstraní poznámku (vyžaduje potvrzení)
+
+**Omezení:**
+- Menu se nezobrazí v režimu editace trasy (pouze tooltip je dostupný)
 
 ## Atributy trasy
 
@@ -659,9 +777,11 @@ Pokud uživatel vytvoří novou trasu a stornuje ji **před přidáním alespoň
 ### Export GPX
 
 - **Akce**: Tlačítko "Uložit" v hlavním toolbaru
-- **Výsledek**: Vytvoří se GPX soubor se všemi trasami
+- **Výsledek**: Vytvoří se GPX soubor se všemi trasami a poznámkami
 - **Filtrování**: Trasy bez validních segmentů se přeskočí
-- **Formát**: Každý segment = jeden `<trkseg>` element
+- **Formát**: 
+  - Každý segment = jeden `<trkseg>` element
+  - Každá poznámka = jeden `<wpt>` element (waypoint) s `<desc>` pro text
 
 ### Import GPX
 
@@ -669,9 +789,11 @@ Pokud uživatel vytvoří novou trasu a stornuje ji **před přidáním alespoň
 - **Podporované formáty**: 
   - Nový formát (s `gpxx:SegmentMode`)
   - Starý formát (automatická detekce)
+  - Waypoints (`<wpt>`) se načtou jako poznámky
 - **Výsledek**: 
   - Každý `<trkseg>` se načte jako samostatný segment
   - Pokud GPX obsahuje více `<trkseg>`, vytvoří se trasa s více segmenty
+  - Každý `<wpt>` se načte jako poznámka (text z `<desc>`)
 - **Poznámka**: Import nevyžaduje API volání (geometrie je v GPX)
 
 ## Loading indikátor
@@ -739,6 +861,21 @@ V editačním panelu, na konci scrollovatelného obsahu, jsou zobrazeny nápově
 - Styl `.segments-section > h4` zajišťuje konzistentní vzhled nadpisu v detail panelu
 - Barva: `#9e9e9e` (šedá), velikost: `14px`, `text-transform: uppercase`, `letter-spacing: 0.5px`
 - Aplikuje se na nadpisy přímo v `.segments-section` (bez wrapperu `.segments-header`)
+
+## Poznámky - technické detaily
+
+### Správa poznámek
+
+- **Datová vrstva**: Poznámky jsou spravovány přes `DataStore` (podobně jako trasy)
+- **Eventy**: `note:created`, `note:updated`, `note:deleted`, `notes:loaded`, `notes:cleared`
+- **Renderování**: `NotesRenderer` zobrazuje poznámky jako Leaflet markery
+- **Omezení editace**: V režimu editace trasy jsou poznámky read-only (pouze tooltip)
+
+### GPX formát
+
+- **Ukládání**: Poznámky se ukládají jako `<wpt>` elementy s `<desc>` pro text
+- **Načítání**: Při importu GPX se všechny `<wpt>` elementy načtou jako poznámky
+- **Escape znaků**: Speciální XML znaky se automaticky escapují při ukládání
 
 ---
 

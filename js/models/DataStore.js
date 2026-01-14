@@ -320,6 +320,44 @@ export class Route {
 }
 
 /**
+ * Note model - simple note with position and text
+ */
+export class Note {
+    constructor(data = {}) {
+        this.id = data.id || null;
+        this.lat = data.lat || 0;
+        this.lon = data.lon || 0;
+        this.text = data.text || '';
+    }
+    
+    /**
+     * Clone the note
+     * @returns {Note}
+     */
+    clone() {
+        return new Note({
+            id: this.id,
+            lat: this.lat,
+            lon: this.lon,
+            text: this.text
+        });
+    }
+    
+    /**
+     * Serialize to JSON
+     * @returns {Object}
+     */
+    toJSON() {
+        return {
+            id: this.id,
+            lat: this.lat,
+            lon: this.lon,
+            text: this.text
+        };
+    }
+}
+
+/**
  * Central data store for the application
  * Singleton pattern with event emission
  */
@@ -334,6 +372,10 @@ class DataStore extends EventEmitter {
         this._isEditing = false;          // Editing mode
         this._routeBackup = null;
         this._routeSearchQuery = '';
+        
+        // Notes
+        this._notes = [];
+        this._nextNoteId = 1;
         
         // Key states
         this._ctrlPressed = false;
@@ -885,6 +927,100 @@ class DataStore extends EventEmitter {
     clearClipboard() {
         this._segmentClipboard = null;
         this.emit('clipboard:changed');
+    }
+    
+    // ==================
+    // NOTES
+    // ==================
+    
+    get notes() {
+        return this._notes;
+    }
+    
+    /**
+     * Get note by ID
+     */
+    getNote(id) {
+        return this._notes.find(n => n.id === id) || null;
+    }
+    
+    /**
+     * Create a new note
+     * @param {number} lat - Latitude
+     * @param {number} lon - Longitude
+     * @param {string} text - Note text
+     * @returns {Note}
+     */
+    createNote(lat, lon, text = '') {
+        const note = new Note({
+            id: this._nextNoteId++,
+            lat,
+            lon,
+            text
+        });
+        this._notes.push(note);
+        this.emit('note:created', note);
+        return note;
+    }
+    
+    /**
+     * Add an existing note (e.g., from import)
+     */
+    addNote(noteData) {
+        const note = noteData instanceof Note ? noteData : new Note(noteData);
+        if (!note.id) {
+            note.id = this._nextNoteId++;
+        } else if (note.id >= this._nextNoteId) {
+            this._nextNoteId = note.id + 1;
+        }
+        this._notes.push(note);
+        this.emit('note:added', note);
+        return note;
+    }
+    
+    /**
+     * Update a note
+     */
+    updateNote(id, updates) {
+        const note = this.getNote(id);
+        if (!note) return null;
+        
+        Object.assign(note, updates);
+        this.emit('note:updated', note);
+        return note;
+    }
+    
+    /**
+     * Delete a note
+     */
+    deleteNote(id) {
+        const index = this._notes.findIndex(n => n.id === id);
+        if (index === -1) return false;
+        
+        const note = this._notes[index];
+        this._notes.splice(index, 1);
+        
+        this.emit('note:deleted', note);
+        return true;
+    }
+    
+    /**
+     * Clear all notes
+     */
+    clearNotes() {
+        this._notes = [];
+        this.emit('notes:cleared');
+    }
+    
+    /**
+     * Set all notes (e.g., from import)
+     */
+    setNotes(notes) {
+        this._notes = notes.map(n => n instanceof Note ? n : new Note(n));
+        // Update nextNoteId
+        const maxId = Math.max(0, ...this._notes.map(n => n.id || 0));
+        this._nextNoteId = maxId + 1;
+        this.emit('notes:loaded', this._notes);
     }
 }
 

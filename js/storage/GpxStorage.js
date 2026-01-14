@@ -7,7 +7,7 @@
  */
 
 import { StorageInterface } from './StorageInterface.js';
-import { Route, Segment } from '../models/DataStore.js';
+import { Route, Segment, Note } from '../models/DataStore.js';
 import { ROUTE_COLOR_ENUM, LEGACY_COLOR_MAP } from '../config.js';
 
 /**
@@ -34,17 +34,18 @@ export class GpxStorage extends StorageInterface {
     /**
      * Export routes to GPX and trigger download
      * @param {Array} routes - Array of route objects
+     * @param {Array} notes - Array of note objects (optional)
      * @returns {Promise<boolean>}
      */
-    async saveAll(routes) {
+    async saveAll(routes, notes = []) {
         // Filter routes with at least one valid segment
         const validRoutes = routes.filter(r => r.hasValidSegments());
         
-        if (validRoutes.length === 0) {
+        if (validRoutes.length === 0 && notes.length === 0) {
             return false;
         }
         
-        const gpxContent = this._generateGpx(validRoutes);
+        const gpxContent = this._generateGpx(validRoutes, notes);
         const blob = new Blob([gpxContent], { type: 'application/gpx+xml' });
         
         if ('showSaveFilePicker' in window) {
@@ -59,10 +60,11 @@ export class GpxStorage extends StorageInterface {
      * Generate GPX XML content
      * @private
      */
-    _generateGpx(routes) {
+    _generateGpx(routes, notes = []) {
         let gpx = '<?xml version="1.0" encoding="UTF-8"?>\n';
         gpx += '<gpx version="1.1" creator="MapyEditorBeta" xmlns="http://www.topografix.com/GPX/1/1" xmlns:gpxx="http://www.garmin.com/xmlschemas/GpxExtensions/v3" xmlns:mapy="http://mapyeditor.local/gpx/1">\n';
 
+        // Export routes
         routes.forEach(route => {
             gpx += '  <trk>\n';
             
@@ -113,6 +115,15 @@ export class GpxStorage extends StorageInterface {
             }
             
             gpx += '  </trk>\n';
+        });
+        
+        // Export notes as waypoints (WPT)
+        notes.forEach(note => {
+            gpx += '  <wpt lat="' + note.lat + '" lon="' + note.lon + '">\n';
+            if (note.text) {
+                gpx += '    <desc>' + this._escapeXml(note.text) + '</desc>\n';
+            }
+            gpx += '  </wpt>\n';
         });
 
         gpx += '</gpx>';
@@ -233,22 +244,24 @@ export class GpxStorage extends StorageInterface {
     // ==================
     
     /**
-     * Import routes from GPX file(s)
+     * Import routes and notes from GPX file(s)
      * @param {File|FileList} files - File or FileList to import
-     * @returns {Promise<Array>} Array of imported route objects
+     * @returns {Promise<Object>} { routes: Array, notes: Array }
      */
     async loadAll(files) {
         const fileList = files instanceof FileList ? Array.from(files) : [files];
         const routes = [];
+        const notes = [];
         
         for (const file of fileList) {
             if (file.name.toLowerCase().endsWith('.gpx')) {
-                const fileRoutes = await this._importFile(file);
-                routes.push(...fileRoutes);
+                const result = await this._importFile(file);
+                routes.push(...result.routes);
+                notes.push(...result.notes);
             }
         }
         
-        return routes;
+        return { routes, notes };
     }
     
     /**
@@ -259,12 +272,12 @@ export class GpxStorage extends StorageInterface {
         return new Promise((resolve) => {
             const reader = new FileReader();
             reader.onload = (e) => {
-                const routes = this._parseGpx(e.target.result, file.name);
-                resolve(routes);
+                const result = this._parseGpx(e.target.result, file.name);
+                resolve(result);
             };
             reader.onerror = () => {
                 console.error('Error reading file:', file.name);
-                resolve([]);
+                resolve({ routes: [], notes: [] });
             };
             reader.readAsText(file);
         });
@@ -273,21 +286,56 @@ export class GpxStorage extends StorageInterface {
     /**
      * Parse GPX XML content
      * @private
+     * @returns {Object} { routes: Array, notes: Array }
      */
     _parseGpx(content, filename) {
         const parser = new DOMParser();
         const xmlDoc = parser.parseFromString(content, 'text/xml');
         const tracks = xmlDoc.getElementsByTagName('trk');
+        const waypoints = xmlDoc.getElementsByTagName('wpt');
         const routes = [];
+        const notes = [];
 
+        // Parse routes
         for (const trk of Array.from(tracks)) {
             const route = this._parseTrack(trk, filename);
             if (route) {
                 routes.push(route);
             }
         }
+        
+        // Parse notes (waypoints)
+        for (const wpt of Array.from(waypoints)) {
+            const note = this._parseWaypoint(wpt);
+            if (note) {
+                notes.push(note);
+            }
+        }
 
-        return routes;
+        return { routes, notes };
+    }
+    
+    /**
+     * Parse a waypoint element (WPT) as a note
+     * @private
+     */
+    _parseWaypoint(wpt) {
+        const lat = parseFloat(wpt.getAttribute('lat'));
+        const lon = parseFloat(wpt.getAttribute('lon'));
+        
+        if (isNaN(lat) || isNaN(lon)) {
+            return null;
+        }
+        
+        // Read description (text)
+        const descEl = wpt.getElementsByTagName('desc')[0];
+        const text = descEl ? descEl.textContent || '' : '';
+        
+        return new Note({
+            lat,
+            lon,
+            text
+        });
     }
     
     /**

@@ -17,6 +17,8 @@ class ContextMenu {
         this._onDelete = null;
         this._onModeChange = null;
         this._onSplit = null;
+        this._onNoteEdit = null;
+        this._onNoteDelete = null;
     }
     
     /**
@@ -58,6 +60,30 @@ class ContextMenu {
             this.hide();
         });
         
+        // Note menu items (if they exist)
+        const noteEditEl = document.getElementById('context-menu-note-edit');
+        const noteDeleteEl = document.getElementById('context-menu-note-delete');
+        
+        if (noteEditEl) {
+            noteEditEl.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (this._data && this._onNoteEdit) {
+                    this._onNoteEdit(this._data);
+                }
+                this.hide();
+            });
+        }
+        
+        if (noteDeleteEl) {
+            noteDeleteEl.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (this._data && this._onNoteDelete) {
+                    this._onNoteDelete(this._data);
+                }
+                this.hide();
+            });
+        }
+        
         // Hide on any click outside
         document.addEventListener('click', () => {
             this.hide();
@@ -89,11 +115,27 @@ class ContextMenu {
     }
     
     /**
+     * Set note edit callback
+     * @param {Function} callback - (note) => void
+     */
+    setNoteEditCallback(callback) {
+        this._onNoteEdit = callback;
+    }
+    
+    /**
+     * Set note delete callback
+     * @param {Function} callback - (note) => void
+     */
+    setNoteDeleteCallback(callback) {
+        this._onNoteDelete = callback;
+    }
+    
+    /**
      * Show the context menu
      * @param {number} x - X position (pixels)
      * @param {number} y - Y position (pixels)
      * @param {Object} data - Context data 
-     *   { type, routeId, segmentIndex, waypointIndex, segmentMode, waypointCount }
+     *   { type, routeId, segmentIndex, waypointIndex, segmentMode, waypointCount } or { type: 'note', note }
      */
     show(x, y, data) {
         this._data = data;
@@ -105,8 +147,34 @@ class ContextMenu {
         const routingOption = document.getElementById('context-menu-mode-routing');
         const manualOption = document.getElementById('context-menu-mode-manual');
         const splitOption = document.getElementById('context-menu-split');
+        const deleteOption = document.getElementById('context-menu-delete');
+        const noteEditOption = document.getElementById('context-menu-note-edit');
+        const noteDeleteOption = document.getElementById('context-menu-note-delete');
         
-        if (data.type === 'waypoint') {
+        if (data.type === 'note') {
+            // Note context menu - show only note options
+            // Hide all waypoint-related options
+            if (routingOption) routingOption.style.display = 'none';
+            if (manualOption) manualOption.style.display = 'none';
+            if (splitOption) splitOption.style.display = 'none';
+            if (deleteOption) deleteOption.style.display = 'none';
+            
+            // Hide all separators
+            const separators = this._element.querySelectorAll('.context-menu-separator');
+            separators.forEach(sep => sep.style.display = 'none');
+            
+            // Show note options
+            if (noteEditOption) noteEditOption.style.display = 'flex';
+            if (noteDeleteOption) noteDeleteOption.style.display = 'flex';
+        } else if (data.type === 'waypoint') {
+            // Waypoint context menu - show waypoint options
+            // Show all separators (they will be shown/hidden based on options)
+            const separators = this._element.querySelectorAll('.context-menu-separator');
+            separators.forEach(sep => sep.style.display = 'block');
+            
+            if (noteEditOption) noteEditOption.style.display = 'none';
+            if (noteDeleteOption) noteDeleteOption.style.display = 'none';
+            
             // Mode change is for the whole segment - show opposite mode
             if (data.segmentMode === 'routing') {
                 routingOption.style.display = 'none';
@@ -126,16 +194,20 @@ class ContextMenu {
             const isNotAtEdge = data.waypointIndex > 0 && 
                                 data.waypointIndex < (data.waypointCount - 1);
             splitOption.style.display = isNotAtEdge ? 'flex' : 'none';
+            deleteOption.style.display = 'flex';
         } else {
-            // Hide mode options for non-waypoint context
-            routingOption.style.display = 'none';
-            manualOption.style.display = 'none';
-            splitOption.style.display = 'none';
+            // Hide all options for unknown context
+            if (routingOption) routingOption.style.display = 'none';
+            if (manualOption) manualOption.style.display = 'none';
+            if (splitOption) splitOption.style.display = 'none';
+            if (deleteOption) deleteOption.style.display = 'none';
+            if (noteEditOption) noteEditOption.style.display = 'none';
+            if (noteDeleteOption) noteDeleteOption.style.display = 'none';
         }
         
         // Update mode change text to indicate it affects whole segment
-        const routingText = routingOption.querySelector('span') || routingOption.lastChild;
-        const manualText = manualOption.querySelector('span') || manualOption.lastChild;
+        const routingText = routingOption ? (routingOption.querySelector('span') || routingOption.lastChild) : null;
+        const manualText = manualOption ? (manualOption.querySelector('span') || manualOption.lastChild) : null;
         
         // Text is already in the HTML, just ensure it's clear
     }

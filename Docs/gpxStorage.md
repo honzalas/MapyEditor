@@ -99,6 +99,29 @@ Každý segment obsahuje informace o způsobu vytvoření a geometrii:
 | `routing` | Segment vypočítaný pomocí routovacího API. Krom vlastní geometrie jsou v extensions uloženy řídící body pro routování - StartPoint,EndPoint a Waypoints. |
 | `manual` | Ručně zadané body (přímé úsečky). Uložená je pouze geometrie, řídící body nemají smysl. Pozor, okrajové body musí navazovat na geometrie okolních úseků.  |
 
+## Poznámky (wpt elementy)
+
+Poznámky se ukládají jako standardní GPX waypoints (`<wpt>`) s textem v elementu `<desc>`:
+
+```xml
+<wpt lat="50.0755" lon="14.4378">
+    <desc>Poznámka k tomuto místu</desc>
+</wpt>
+```
+
+### Struktura poznámky
+
+| Element | Popis | Povinné |
+|---------|-------|---------|
+| `<wpt>` | Waypoint element s atributy `lat` a `lon` | Ano |
+| `<desc>` | Text poznámky | Ne (může být prázdný) |
+
+**Poznámky:**
+- Element `<name>` se nepoužívá (pouze `<desc>`)
+- Text v `<desc>` může obsahovat entery (odřádkování)
+- Speciální znaky v textu se automaticky escapují (XML entity)
+- Poznámky jsou nezávislé na trasách a mohou být prázdné
+
 ## Příklad kompletního GPX
 
 ```xml
@@ -128,6 +151,12 @@ Každý segment obsahuje informace o způsobu vytvoření a geometrii:
       <trkpt lat="50.0880" lon="14.4200"></trkpt>
     </trkseg>
   </trk>
+  <wpt lat="50.0755" lon="14.4378">
+    <desc>Důležité místo na trase</desc>
+  </wpt>
+  <wpt lat="50.0820" lon="14.4450">
+    <desc>Rozcestník</desc>
+  </wpt>
 </gpx>
 ```
 

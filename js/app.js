@@ -25,6 +25,8 @@ import { contextMenu } from './ui/ContextMenu.js';
 import { routesMenu } from './ui/RoutesMenu.js';
 import { hoverMarker } from './ui/HoverMarker.js';
 import { panelManager } from './ui/PanelManager.js';
+import { notesRenderer } from './ui/NotesRenderer.js';
+import { notePopup } from './ui/NotePopup.js';
 import { findRoutesAtPoint } from './services/GeometryUtils.js';
 
 /**
@@ -45,6 +47,7 @@ class App {
         contextMenu.initialize();
         routesMenu.initialize();
         panelManager.initialize();
+        notePopup.initialize();
         
         // Set up callbacks
         this._setupTopToolbar();
@@ -57,9 +60,11 @@ class App {
         this._setupMapEventHandlers();
         this._setupKeyboardHandlers();
         this._setupDataStoreEventListeners();
+        this._setupNotesCallbacks();
         
         // Initial UI update
         this._updateUI();
+        this._renderNotes();
         
         // Set up beforeunload warning
         window.addEventListener('beforeunload', (e) => {
@@ -329,24 +334,98 @@ class App {
             await this._handleMapClick(e);
         });
         
-        // Right-click for routes menu (when not editing)
+        // Right-click for routes menu or add note (when not editing)
         mapManager.on('contextmenu', (e) => {
             L.DomEvent.preventDefault(e);
             
-            if (!dataStore.isEditing && dataStore.routes.length > 0) {
-                // Find routes at this point
-                const routeResults = findRoutesAtPoint(
-                    e.latlng,
-                    dataStore.routes,
-                    20, // 20px tolerance
-                    mapManager.map
-                );
-                
-                if (routeResults.length > 0) {
-                    const pixel = mapManager.latLngToContainerPoint(e.latlng);
-                    routesMenu.show(pixel.x, pixel.y, routeResults);
-                }
+            if (dataStore.isEditing) return; // No context menu in route editing mode
+            
+            // Find routes at this point
+            const routeResults = findRoutesAtPoint(
+                e.latlng,
+                dataStore.routes,
+                20, // 20px tolerance
+                mapManager.map
+            );
+            
+            if (routeResults.length > 0) {
+                // Show routes menu with option to add note
+                const pixel = mapManager.latLngToContainerPoint(e.latlng);
+                routesMenu.show(pixel.x, pixel.y, routeResults, e.latlng);
+            } else {
+                // No routes at this point - show menu with just "Add note"
+                const pixel = mapManager.latLngToContainerPoint(e.latlng);
+                routesMenu.show(pixel.x, pixel.y, [], e.latlng);
             }
+        });
+    }
+    
+    /**
+     * Set up callbacks for notes
+     * @private
+     */
+    _setupNotesCallbacks() {
+        // Notes renderer callbacks
+        notesRenderer.setNoteContextMenuCallback((pixel, note) => {
+            contextMenu.show(pixel.x, pixel.y, { type: 'note', note });
+        });
+        
+        notesRenderer.setNoteDragEndCallback((noteId, latlng) => {
+            dataStore.updateNote(noteId, { lat: latlng.lat, lon: latlng.lng });
+        });
+        
+        // Context menu callbacks for notes
+        contextMenu.setNoteEditCallback((data) => {
+            if (data.note) {
+                // Get marker from renderer
+                const marker = notesRenderer.getMarker(data.note.id);
+                notePopup.show(data.note, marker);
+            }
+        });
+        
+        contextMenu.setNoteDeleteCallback((data) => {
+            if (data.note && confirm('Opravdu chcete smazat tuto poznámku?')) {
+                dataStore.deleteNote(data.note.id);
+            }
+        });
+        
+        // Note popup callback
+        notePopup.setSaveCallback((note, text) => {
+            if (note.id) {
+                // Update existing note
+                dataStore.updateNote(note.id, { text });
+            } else {
+                // Create new note - event listener will handle rendering
+                // Ensure lon is set (Leaflet uses lng, but we use lon)
+                const lon = note.lon !== undefined ? note.lon : (note.lng !== undefined ? note.lng : 0);
+                dataStore.createNote(note.lat, lon, text);
+            }
+        });
+        
+        // Routes menu callback for adding note
+        routesMenu.setAddNoteCallback((latlng) => {
+            notePopup.showNew(latlng, mapManager.map);
+        });
+        
+        // DataStore event listeners for notes
+        dataStore.on('note:created', (note) => {
+            notesRenderer.updateNote(note, !dataStore.isEditing);
+        });
+        
+        dataStore.on('note:updated', (note) => {
+            notesRenderer.updateNote(note, !dataStore.isEditing);
+        });
+        
+        dataStore.on('note:deleted', (note) => {
+            notesRenderer.removeNote(note.id);
+        });
+        
+        dataStore.on('notes:loaded', () => {
+            this._renderNotes();
+        });
+        
+        dataStore.on('notes:cleared', () => {
+            notesRenderer.clear();
         });
     }
     
@@ -947,20 +1026,31 @@ class App {
         panelManager.showImportLoading();
         
         try {
-            const routes = await this._storage.loadAll(files);
-            routes.forEach(route => {
+            const result = await this._storage.loadAll(files);
+            
+            // Import routes
+            result.routes.forEach(route => {
                 dataStore.addRoute(route);
             });
             
+            // Import notes
+            result.notes.forEach(note => {
+                dataStore.addNote(note);
+            });
+            
             routeRenderer.renderAll(dataStore.routes, dataStore.activeRouteId, dataStore.isEditing, dataStore.activeSegmentIndex);
+            this._renderNotes();
             this._updateRoutesList();
             
-            // Fit bounds to all routes
+            // Fit bounds to all routes and notes
             const allCoords = [];
             dataStore.routes.forEach(route => {
                 route.segments.forEach(seg => {
                     seg.waypoints.forEach(wp => allCoords.push(wp));
                 });
+            });
+            dataStore.notes.forEach(note => {
+                allCoords.push({ lat: note.lat, lon: note.lon });
             });
             if (allCoords.length > 0) {
                 mapManager.fitBounds(allCoords);
@@ -974,12 +1064,12 @@ class App {
     }
     
     _exportRoutes() {
-        if (dataStore.routes.length === 0) {
-            alert('Žádné trasy k exportu');
+        if (dataStore.routes.length === 0 && dataStore.notes.length === 0) {
+            alert('Žádné trasy ani poznámky k exportu');
             return;
         }
         
-        this._storage.saveAll(dataStore.routes);
+        this._storage.saveAll(dataStore.routes, dataStore.notes);
     }
     
     // ==================
@@ -1004,11 +1094,23 @@ class App {
         // Re-render all routes to update colors (dimmed vs full)
         routeRenderer.renderAll(dataStore.routes, dataStore.activeRouteId, dataStore.isEditing, dataStore.activeSegmentIndex);
         
+        // Re-render notes (only if not editing route)
+        this._renderNotes();
+        
         if (!dataStore.isEditing && !dataStore.isViewingDetail) {
             this._updateRoutesList();
         }
         
         this._updateCursor();
+    }
+    
+    /**
+     * Render all notes on the map
+     * @private
+     */
+    _renderNotes() {
+        const allowEdit = !dataStore.isEditing; // Notes can only be edited when not editing a route
+        notesRenderer.renderAll(dataStore.notes, allowEdit);
     }
     
     _updateRoutesList() {
