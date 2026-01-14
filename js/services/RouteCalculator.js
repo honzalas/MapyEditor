@@ -113,6 +113,21 @@ class RouteCalculator {
     }
     
     /**
+     * Reverse the order of waypoints in a segment
+     * Recalculates geometry for routing segments
+     * @param {Segment} segment - The segment to reverse
+     */
+    async reverseSegmentWaypoints(segment) {
+        if (segment.waypoints.length < 2) return;
+        
+        // Reverse waypoints array
+        segment.waypoints.reverse();
+        
+        // Recalculate geometry
+        await this.recalculateSegment(segment);
+    }
+    
+    /**
      * Add a waypoint to segment at the end
      * @param {Segment} segment - The segment
      * @param {number} lat - Latitude

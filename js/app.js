@@ -294,6 +294,10 @@ class App {
             this._copySegmentToClipboard(segmentIndex);
         });
         
+        panelManager.setReverseSegmentCallback(async (segmentIndex) => {
+            await this._reverseSegmentWaypoints(segmentIndex);
+        });
+        
         panelManager.setPasteSegmentCallback(() => {
             this._pasteSegmentFromClipboard();
         });
@@ -816,6 +820,27 @@ class App {
             alert(`Segment v plánovacím módu může mít maximálně ${CONFIG.MAX_WAYPOINTS_PER_API_CALL} průjezdních bodů.`);
             return;
         }
+        
+        this._renderActiveRoute();
+        this._updateUI();
+    }
+    
+    /**
+     * Reverse the order of waypoints in a segment
+     * @param {number} segmentIndex - Index of segment to reverse
+     */
+    async _reverseSegmentWaypoints(segmentIndex) {
+        const route = dataStore.activeRoute;
+        if (!route) return;
+        
+        const segment = route.segments[segmentIndex];
+        if (!segment) return;
+        
+        if (segment.waypoints.length < 2) {
+            return; // Nothing to reverse
+        }
+        
+        await routeCalculator.reverseSegmentWaypoints(segment);
         
         this._renderActiveRoute();
         this._updateUI();

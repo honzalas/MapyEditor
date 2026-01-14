@@ -72,6 +72,7 @@ class PanelManager {
         this._onDeleteSegment = null;
         this._onChangeSegmentMode = null;
         this._onCopySegment = null;
+        this._onReverseSegment = null;
         this._onPasteSegment = null;
         this._onClearClipboard = null;
     }
@@ -406,6 +407,18 @@ class PanelManager {
             });
         }
         
+        const menuSegmentReverse = document.getElementById('menu-segment-reverse');
+        if (menuSegmentReverse) {
+            menuSegmentReverse.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                this._segmentMenu.classList.remove('visible');
+                const segmentIndex = parseInt(this._segmentMenu.dataset.segmentIndex);
+                if (this._onReverseSegment && !isNaN(segmentIndex)) {
+                    await this._onReverseSegment(segmentIndex);
+                }
+            });
+        }
+        
         // Clipboard buttons
         if (this._btnPasteSegment) {
             this._btnPasteSegment.addEventListener('click', () => {
@@ -499,6 +512,7 @@ class PanelManager {
     setDeleteSegmentCallback(callback) { this._onDeleteSegment = callback; }
     setChangeSegmentModeCallback(callback) { this._onChangeSegmentMode = callback; }
     setCopySegmentCallback(callback) { this._onCopySegment = callback; }
+    setReverseSegmentCallback(callback) { this._onReverseSegment = callback; }
     setPasteSegmentCallback(callback) { this._onPasteSegment = callback; }
     setClearClipboardCallback(callback) { this._onClearClipboard = callback; }
     

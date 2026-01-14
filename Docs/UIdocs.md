@@ -493,6 +493,8 @@ Zobrazí se při kliku na menu tlačítko (⋮) u segmentu v seznamu:
 │ ⏱ Změnit na plánování      │
 │ ✏️ Změnit na ruční         │
 ├─────────────────────────────┤
+│ ↻ Otočit pořadí bodů       │
+├─────────────────────────────┤
 │ 🗑 Smazat segment           │
 └─────────────────────────────┘
 ```
@@ -501,6 +503,7 @@ Zobrazí se při kliku na menu tlačítko (⋮) u segmentu v seznamu:
 - **Kopírovat do schránky**: Zkopíruje segment (jeho waypointy a typ plánování) do virtuální schránky. Schránka může obsahovat maximálně 1 segment.
 - **Změnit na plánování**: Dostupné pouze pokud segment má ≤15 waypointů
 - **Změnit na ruční**: Vždy dostupné
+- **Otočit pořadí bodů**: Otočí pořadí waypointů v segmentu (první se stane posledním, poslední prvním). Pro plánované segmenty se znovu naplánuje trasa přes API. Po otočení se nové body přidávají před původní start (nyní konec) místo za původní cíl (nyní start), což umožňuje rozšiřovat trasu druhým směrem.
 - **Smazat segment**: Vyžaduje potvrzení
 
 ### Menu trasy
