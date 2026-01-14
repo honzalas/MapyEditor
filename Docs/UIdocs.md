@@ -197,7 +197,7 @@ Obsahuje čtyři hlavní sekce (zobrazuje se vždy jen jedna podle aktuálního 
 - **Akce**: **CTRL + klik** na mapu
 - **Výsledek**: Přidá se routing waypoint (žlutý marker)
 - **Kurzor**: `crosshair` (sjednocený s režimem startu)
-- **Omezení**: Maximálně 15 waypointů v routing segmentu
+- **Omezení**: Maximálně 15 waypointů v routing segmentu. Pokud by přidání způsobilo překročení limitu, operace se neprovede a zobrazí se varování
 
 #### Midpointy (průjezdní body na čáře)
 
@@ -207,6 +207,7 @@ Obsahuje čtyři hlavní sekce (zobrazuje se vždy jen jedna podle aktuálního 
 - **Podmínky zobrazení**:
   - Zobrazí se pouze pokud je myš blízko čáry (< 20px)
   - Skryje se pokud je myš blízko existujícího waypointu (< 20px)
+- **Poznámka**: Systém správně identifikuje, mezi které dva waypointy se nový bod vkládá, pomocí projekce bodu na geometrii a porovnání vzdáleností k sousedním waypointům
 
 ### Editace waypointů
 
@@ -643,7 +644,7 @@ Tyto metody se používají ve všech UI komponentách:
 ### Omezení routing segmentů
 
 - **Maximální počet waypointů**: 15
-- **Přidání waypointu**: Pokud by segment měl >15 bodů, operace se neprovede
+- **Přidání waypointu**: Kontrola limitu probíhá při všech způsobech přidávání (CTRL+klik, midpoint přes hover marker). Pokud by segment měl ≥15 bodů, operace se neprovede a zobrazí se varování
 - **Změna módu na routing**: Dostupné pouze pokud segment má ≤15 waypointů
 
 ### Stornování nové trasy

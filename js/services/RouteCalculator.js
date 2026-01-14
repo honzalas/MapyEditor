@@ -218,7 +218,8 @@ class RouteCalculator {
                 } else {
                     // For routing, we insert based on which pair of waypoints
                     // the geometry point falls between
-                    insertIndex = this._findWaypointInsertIndex(segment, i);
+                    // Use the projected point for better accuracy
+                    insertIndex = this._findWaypointInsertIndex(segment, i, result.point);
                 }
             }
         }
@@ -268,32 +269,58 @@ class RouteCalculator {
     
     /**
      * For routing segments, find which waypoint index to insert at
-     * based on geometry index
+     * based on geometry index and projected point
      * @private
      */
-    _findWaypointInsertIndex(segment, geometryIndex) {
+    _findWaypointInsertIndex(segment, geometryIndex, projectedPoint) {
         // For routing segments, we need to map geometry position to waypoint position
-        // This is a simplified heuristic - insert after the closest waypoint
+        // Use the projected point instead of just one geometry point for better accuracy
         
         if (segment.waypoints.length <= 2) {
             return 1; // Insert between start and end
         }
         
-        const geomPoint = segment.geometry[geometryIndex];
+        // Find the closest waypoint to the projected point
         let minDist = Infinity;
         let closestWpIndex = 0;
         
         for (let i = 0; i < segment.waypoints.length; i++) {
             const wp = segment.waypoints[i];
-            const dist = Math.pow(wp.lat - geomPoint.lat, 2) + Math.pow(wp.lon - geomPoint.lon, 2);
+            const dist = Math.pow(wp.lat - projectedPoint.lat, 2) + Math.pow(wp.lon - projectedPoint.lon, 2);
             if (dist < minDist) {
                 minDist = dist;
                 closestWpIndex = i;
             }
         }
         
-        // Insert after the closest waypoint (but not at the very end)
-        return Math.min(closestWpIndex + 1, segment.waypoints.length - 1);
+        // Determine if we should insert before or after the closest waypoint
+        // by checking distances to adjacent waypoints
+        
+        // If the closest waypoint is the first one, insert after it
+        if (closestWpIndex === 0) {
+            return 1;
+        }
+        
+        // If the closest waypoint is the last one, insert before it
+        if (closestWpIndex === segment.waypoints.length - 1) {
+            return segment.waypoints.length - 1;
+        }
+        
+        // For waypoints in the middle, determine which side by comparing
+        // distances to previous and next waypoint
+        const prevWp = segment.waypoints[closestWpIndex - 1];
+        const nextWp = segment.waypoints[closestWpIndex + 1];
+        
+        const distToPrev = Math.pow(prevWp.lat - projectedPoint.lat, 2) + Math.pow(prevWp.lon - projectedPoint.lon, 2);
+        const distToNext = Math.pow(nextWp.lat - projectedPoint.lat, 2) + Math.pow(nextWp.lon - projectedPoint.lon, 2);
+        
+        // If closer to previous waypoint, insert after previous (before closest)
+        // If closer to next waypoint, insert after closest (before next)
+        if (distToPrev < distToNext) {
+            return closestWpIndex; // Insert before closest waypoint
+        } else {
+            return closestWpIndex + 1; // Insert after closest waypoint
+        }
     }
 }
 
