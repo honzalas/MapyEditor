@@ -117,10 +117,17 @@ class RouteCalculator {
      * @param {Segment} segment - The segment
      * @param {number} lat - Latitude
      * @param {number} lon - Longitude
+     * @returns {Promise<boolean>} Success - false if limit exceeded
      */
     async addWaypoint(segment, lat, lon) {
+        // Check waypoint limit for routing segments
+        if (segment.mode === 'routing' && segment.waypoints.length >= CONFIG.MAX_WAYPOINTS_PER_API_CALL) {
+            return false;
+        }
+        
         segment.waypoints.push({ lat, lon });
         await this.recalculateSegment(segment);
+        return true;
     }
     
     /**
@@ -129,13 +136,20 @@ class RouteCalculator {
      * @param {number} index - Index where to insert (1 = after first waypoint)
      * @param {number} lat - Latitude
      * @param {number} lon - Longitude
+     * @returns {Promise<boolean>} Success - false if limit exceeded
      */
     async insertWaypoint(segment, index, lat, lon) {
+        // Check waypoint limit for routing segments
+        if (segment.mode === 'routing' && segment.waypoints.length >= CONFIG.MAX_WAYPOINTS_PER_API_CALL) {
+            return false;
+        }
+        
         if (index < 0) index = 0;
         if (index > segment.waypoints.length) index = segment.waypoints.length;
         
         segment.waypoints.splice(index, 0, { lat, lon });
         await this.recalculateSegment(segment);
+        return true;
     }
     
     /**

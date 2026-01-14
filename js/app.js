@@ -811,7 +811,11 @@ class App {
         hoverMarker.hide();
         
         // Insert the new waypoint
-        await routeCalculator.insertWaypoint(segment, insertIndex, lat, lon);
+        const success = await routeCalculator.insertWaypoint(segment, insertIndex, lat, lon);
+        if (!success) {
+            alert(`Segment v plánovacím módu může mít maximálně ${CONFIG.MAX_WAYPOINTS_PER_API_CALL} průjezdních bodů.`);
+            return;
+        }
         
         this._renderActiveRoute();
         this._updateUI();
@@ -897,7 +901,11 @@ class App {
             this._updateUI();
         } else if (dataStore.ctrlPressed) {
             // Add waypoint to end of segment
-            await routeCalculator.addWaypoint(segment, clickedLat, clickedLon);
+            const success = await routeCalculator.addWaypoint(segment, clickedLat, clickedLon);
+            if (!success) {
+                alert(`Segment v plánovacím módu může mít maximálně ${CONFIG.MAX_WAYPOINTS_PER_API_CALL} průjezdních bodů.`);
+                return;
+            }
             this._renderActiveRoute();
             this._updateUI();
         }
