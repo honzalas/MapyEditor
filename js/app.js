@@ -407,6 +407,14 @@ class App {
             notePopup.showNew(latlng, mapManager.map);
         });
         
+        // Routes menu callback for opening Mapy.com
+        routesMenu.setOpenMapyCallback((latlng) => {
+            // Format: lon,lat (reversed order)
+            const center = `${latlng.lng || latlng.lon},${latlng.lat}`;
+            const url = `https://mapy.com/fnc/v1/showmap?mapset=outdoor&center=${center}&zoom=17`;
+            window.open(url, '_blank');
+        });
+        
         // DataStore event listeners for notes
         dataStore.on('note:created', (note) => {
             notesRenderer.updateNote(note, !dataStore.isEditing);

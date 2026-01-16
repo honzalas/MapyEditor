@@ -12,6 +12,7 @@ class RoutesMenu {
         this._listElement = null;
         this._onRouteSelect = null;
         this._onAddNote = null;
+        this._onOpenMapy = null;
         this._justOpened = false;
         this._latlng = null; // Store latlng for adding note
     }
@@ -52,6 +53,14 @@ class RoutesMenu {
      */
     setAddNoteCallback(callback) {
         this._onAddNote = callback;
+    }
+    
+    /**
+     * Set open Mapy.com callback
+     * @param {Function} callback - (latlng) => void
+     */
+    setOpenMapyCallback(callback) {
+        this._onOpenMapy = callback;
     }
     
     /**
@@ -153,6 +162,38 @@ class RoutesMenu {
             });
             
             this._listElement.appendChild(addNoteItem);
+            
+            // Add "Open Mapy.com" option
+            const openMapyItem = document.createElement('div');
+            openMapyItem.className = 'routes-menu-item';
+            
+            const mapyIconSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            mapyIconSvg.setAttribute('viewBox', '0 0 24 24');
+            mapyIconSvg.setAttribute('fill', 'none');
+            mapyIconSvg.setAttribute('stroke', 'currentColor');
+            mapyIconSvg.setAttribute('stroke-width', '2');
+            mapyIconSvg.style.width = '16px';
+            mapyIconSvg.style.height = '16px';
+            
+            const mapyPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            mapyPath.setAttribute('d', 'M18 3a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3H6a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3V6a3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3h12a3 3 0 0 0 3-3 3 3 0 0 0-3-3z');
+            mapyIconSvg.appendChild(mapyPath);
+            
+            const mapyText = document.createElement('span');
+            mapyText.textContent = 'Otevřít na Mapy.com';
+            
+            openMapyItem.appendChild(mapyIconSvg);
+            openMapyItem.appendChild(mapyText);
+            
+            openMapyItem.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (this._onOpenMapy && this._latlng) {
+                    this._onOpenMapy(this._latlng);
+                }
+                this.hide();
+            });
+            
+            this._listElement.appendChild(openMapyItem);
         }
         
         // Hide header if no routes
