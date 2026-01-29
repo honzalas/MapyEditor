@@ -33,7 +33,7 @@ export const CONFIG = {
     
     // Route line styles
     ROUTE_LINE: {
-        WEIGHT_NORMAL: 4,       // Normal route line width
+        WEIGHT_NORMAL: 8,       // Normal route line width
         WEIGHT_HIGHLIGHT: 5,    // Highlighted route line width (on hover)
         WEIGHT_DETAIL: 5,       // Route line width in detail mode
         WEIGHT_EDIT: 5,         // Route line width in edit mode
