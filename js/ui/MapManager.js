@@ -92,11 +92,18 @@ class MapManager {
         // Group both heatmap layers together
         this._heatmapLayerGroup = L.layerGroup([mapyboxHeatmap, ninjaHeatmap]);
         
+        // Tourist routes overlay (z-x-y tile format)
+        const touristRoutesLayer = L.tileLayer('https://janice.dev.dszn.cz/tiles/tourist_routes/{z}-{x}-{y}', {
+            minZoom: CONFIG.MAP.MIN_ZOOM,
+            maxZoom: CONFIG.MAP.MAX_ZOOM,
+        });
+        
         // Create FeatureGroup for all routes
         this._routesLayerGroup = L.featureGroup();
         
         this._overlayLayers = {
             'Heatmap': this._heatmapLayerGroup,
+            'Voralbersko': touristRoutesLayer,
             'Skrýt trasy': this._routesLayerGroup,
         };
         
