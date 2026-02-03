@@ -371,6 +371,7 @@ class DataStore extends EventEmitter {
         this._isViewingDetail = false;    // Viewing detail mode (read-only)
         this._isEditing = false;          // Editing mode
         this._routeBackup = null;
+        this._editingStartedFromDetail = false;  // true when entered edit via "Editovat", false when via "Nová trasa"
         this._routeSearchQuery = '';
         
         // Notes
@@ -543,6 +544,7 @@ class DataStore extends EventEmitter {
             this._isViewingDetail = false;
             this._isEditing = false;
             this._routeBackup = null;
+            this._editingStartedFromDetail = false;
         }
         
         this.emit('route:deleted', route);
@@ -622,6 +624,7 @@ class DataStore extends EventEmitter {
         const route = this.activeRoute;
         if (!route) return false;
         
+        this._editingStartedFromDetail = true;
         this._isViewingDetail = false;
         this._isEditing = true;
         
@@ -650,6 +653,7 @@ class DataStore extends EventEmitter {
         const route = this.getRoute(id);
         if (!route) return false;
         
+        this._editingStartedFromDetail = false;
         const previousActiveId = this._activeRouteId;
         this._activeRouteId = id;
         this._isViewingDetail = false;
@@ -776,11 +780,18 @@ class DataStore extends EventEmitter {
             return false;  // Cannot save - no valid segments
         }
         
-        // Switch from editing to detail view
+        // Switch from editing: to detail view if we came from detail (Editovat), else go to list (Nová trasa)
         this._isEditing = false;
-        this._isViewingDetail = true;
         this._activeSegmentIndex = null;
         this._routeBackup = null;
+        const goToDetail = this._editingStartedFromDetail;
+        this._editingStartedFromDetail = false;
+        if (goToDetail) {
+            this._isViewingDetail = true;
+        } else {
+            this._activeRouteId = null;
+            this._isViewingDetail = false;
+        }
         
         this.emit('route:saved', { route });
         return true;
@@ -803,6 +814,7 @@ class DataStore extends EventEmitter {
         this._isViewingDetail = false;
         this._isEditing = false;
         this._routeBackup = null;
+        this._editingStartedFromDetail = false;
         
         this.emit('route:deactivated', { route, previousActiveId });
     }

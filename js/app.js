@@ -715,12 +715,16 @@ class App {
         
         hoverMarker.hide();
         
-        // Re-render route (unhighlighted, but keep it visible)
-        const savedRoute = dataStore.activeRoute;
+        // Re-render saved route
+        const savedRoute = dataStore.getRoute(route.id);
         if (savedRoute) {
             routeRenderer.render(savedRoute, false, false, null);
-            // Highlight the route in detail view
-            routeRenderer.highlightRoute(savedRoute.id, true);
+            // Highlight only when staying on detail (edit from detail); when returning to list (new route) do not highlight
+            if (dataStore.isViewingDetail && dataStore.activeRouteId === savedRoute.id) {
+                routeRenderer.highlightRoute(savedRoute.id, true);
+            } else {
+                routeRenderer.highlightRoute(savedRoute.id, false);
+            }
         }
         
         this._updateUI();
