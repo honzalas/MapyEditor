@@ -124,9 +124,10 @@ class RouteRenderer {
                 const line = L.polyline(latLngs, lineOptions);
                 mapManager.addRouteLayer(line);
                 
-                // Create text decorator for route name (not in edit mode)
+                // Create text decorator for route name (not in edit mode, only if title is not "noname", zoom >= 14)
                 // Uses route.getTitle() to ensure consistency across the app
-                if (!isEditing && routeTitle) {
+                const zoom = mapManager.map ? mapManager.map.getZoom() : 14;
+                if (!isEditing && routeTitle && routeTitle !== 'noname' && zoom >= 14) {
                     const decorator = L.polylineDecorator(line, {
                         patterns: [
                             {

@@ -358,6 +358,11 @@ class App {
                 routesMenu.show(pixel.x, pixel.y, [], e.latlng);
             }
         });
+        
+        // Re-render routes on zoom so name labels appear only from zoom 14
+        mapManager.on('zoomend', () => {
+            routeRenderer.renderAll(dataStore.routes, dataStore.activeRouteId, dataStore.isEditing, dataStore.activeSegmentIndex);
+        });
     }
     
     /**
